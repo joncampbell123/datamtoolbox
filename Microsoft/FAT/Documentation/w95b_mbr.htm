@@ -1,0 +1,997 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html><head><!-- ====================================================================== --><!-- Raymond J. Knights --><!-- Main page at http://home.att.net/~rayknights/index.htm --><!-- All contents copyright (C) 2000-2004, all rights reserved. --><!-- This document was created with Notepad (KISS principle) --><!-- Created on 14 Dec 2000 by Ray Knights --><!-- Last modified on 14 July 2004 by Ray Knights --><!-- Contact: RayKnights@ieee.org --><!-- ====================================================================== --><title>Windows 95b MBR</title><!-- tell Web indexers what to do -->
+  
+  
+  <meta name="robots" content="index,follow">
+  <meta name="description" content="Discussion of the Windows 95 (OSR2) MBR, 
+     new partition types and the use of Interrupt 13 extensions by disassembly 
+     of the MBR program code.">
+  <meta name="keywords" content="Windows 95, OSR2, MBR, Master Boot Record, 
+    Master Boot Program, Partition Table, Interrupt 13, INT13, extensions, 
+    boot, boot-up, DOS, Windows, 95b, unassemble, disassembly"><!-- BASE HREF="http://home.att.net/~rayknights/pc_boot/W95b_mbr.htm" --></head>
+
+
+
+
+
+
+
+
+
+
+<body bgcolor="#ffffff">
+
+<center>
+<h1><a name="Top">Windows 95b (OSR2) MBR</a></h1>
+</center>
+
+<hr>
+
+<h2>Abstract</h2>
+
+<p>There are good descriptions already on the Web concerning the 
+Master Boot Record (MBR), including disassembly of the code, 
+but none that I am aware of that discuss 
+versions under Windows 95 and later.  (This has changed, Starman's 
+<a href="http://www.geocities.com/thestarman3/asm/mbr/MBR_in_detail.htm">Boot 
+Records Revealed!</a> covers both older and newer MBR and boot sectors.) For instance 
+see Hale's HIW series listed in the <a href="#WebRefs">On Line References</a> section, 
+especially the page <i>How It Works: Master Boot Record (MBR)</i> for a pre Windows 95 
+MBR.  Hale's HIW series also contain additional information not presented here.  
+
+
+
+The present document concentrates on an MBR from 
+a PC running Windows 95b (OSR2) which is different from pre Windows 95 versions 
+in that Interrupt 13 extensions are utilized and new System Indicators include 
+support for FAT 32.</p>
+
+<h2><a name="TOC">Table of Contents</a></h2>
+<ul>
+  <li><a href="#Intro">Introduction</a>
+    <ul>
+      <li><a href="#Def">Definitions</a></li>
+      <li><a href="#Boot-Up">PC Boot Sequence</a></li>
+    </ul></li>
+  <li><a href="#MBRhex">Entire MBR record in hex and ASCII</a></li>
+  <li><a href="#PartTbl">MBR - Partition Table structure</a>
+    <ul>
+      <li><a href="#TblEntries">Partition Table (as 4 16-byte entries)</a></li>
+      <li><a href="#Entry1">Entry 1 - Details</a></li>
+      <li><a href="#TblNotes">Notes</a></li>
+    </ul></li>
+  <li><a href="#SysInd">MBR - System Indicator</a></li>
+  <li><a href="#MBRpgm">MBR - Program</a>
+    <ul>
+      <li><a href="#Overview">Overview of MBR Program Code</a></li>
+      <li><a href="#Disassembly">Disassembly of MBR Program Code</a></li>
+    </ul></li>
+  <li><a href="#ExtTbls">Extended Partition Tables</a></li>
+  <li><a href="#HDlimit">MBR - Hard Drive Size Limitations</a>
+    <ul>
+      <li><a href="#Trans">Translating BIOS</a></li>
+      <li><a href="#8.4Limit">The 8.4 GB Limit</a></li>
+      <li><a href="#HDoverlay">Hard Drive Overlays</a></li>
+      <li><a href="#INT13Ext">Interrupt 13 Extensions</a></li>
+      <li><a href="#137Limit">The 137 GB Limit</a></li>
+    </ul></li>
+  <li><a href="#MiscInfo">MBR - Misc Info</a></li>
+  <li><a href="#WebRefs">On Line References</a></li>
+</ul>
+<hr>
+
+
+
+<h2><a name="Intro">Introduction</a></h2>
+<p>With the introduction of Windows 95, Microsoft has changed its version of 
+the MBR to utilize Interrupt 13 extensions and its new System Indicators 
+(or partition types).  The Interrupt 13 extensions allow for larger hard 
+drives using an 8-byte LBA address.  The MBR partition table is still 
+limited to 4-byte LBA addresses but this does give much needed support for 
+larger hard drives with the Windows OS (Operating System), especially with 
+IDE hard drives.  The following discussion is based on an MBR from a PC running 
+Windows 95b (OSR2).  The entire MBR is shown, along with the disassembly of 
+the program code and discussion of the new System Indicators, Interrupt 13 
+extensions and hard drive size limitations.  
+See the <a href="#WebRefs">On Line References</a> 
+for more in-depth information on the boot sequence in general and a previous 
+version of the MBR.  <i>It is interesting to note that the MBR program code on a disk 
+formatted with MSDOS 6.22 is the same as on my old Compaq 286 running DOS 3.31.</i>
+</p>
+
+<h3><a name="Def">Definitions</a></h3>
+See <a href="http://home.att.net/%7Erayknights/pc_boot/glossary.htm">PC Glossary</a> for a list of definitions.  
+Especially important is the use (or misuse) of MB and GB.
+
+<h3><a name="Boot-Up">PC Boot Sequence</a></h3>
+<h4>Boot-Up Overview</h4>
+<ol>
+  <li>On power-up the CPU starts execution of the BIOS-ROM program.</li>
+  <li>The BIOS runs POST and then executes the MBR code.</li>
+  <li>MBR code executes the boot code in the active partition.</li>
+  <li>Boot code in active partition loads the kernel.</li>
+  <li>Kernel loads the remainder of the OS.</li>
+</ol>
+
+<h4>CPU</h4>
+<p>At power on the CPU executes the instruction at memory address FFFF0 which is 
+a jump instruction to the rest of the BIOS code.  (Note that FFFFF =  1,048,575 
+which is at the top of the first MB of memory.)</p>
+<h4>BIOS  Routine</h4>
+<ol>
+  <li>Runs POST (Power On Self Test):</li>
+  <li>Sets up the interrupt vector table at the beginning of memory.  The entries 
+      in the table consist of 4-byte addresses to the interrupt routines.  The 
+      most important for this discussion is interrupt 0x13, the BIOS fixed disk 
+      service which contains read, write, format, diagnostic, initialization and 
+      other functions for the fixed drives.</li>
+  <li>Tests and initializes the central hardware such as CMOS, keyboard controller, 
+      DMA controller, Programmable Interrupt controller, Programmable Interrupt timer, 
+      etc.</li>
+  <li>Tests and initializes the non-system hardware such as CRT controllers, keyboard, 
+      diskette drives, hard disks, etc.</li>
+  <li>Looks for ROM BIOS extensions (0xAA55 at beginning) and if found, calls the 
+      ROM initialization code.</li>
+  <li>The last thing the BIOS does is look for a boot sector on a disk in drive A:.  
+      If not found, it looks for a master boot record (MBR) on drive C:.  If a boot 
+      sector is found on drive A:, the system boots from that disk, otherwise the 
+      system is booted from the first hard drive (drive C:).  (Most BIOSes now allow 
+      a different boot sequence to be set, including the ability to boot from a 
+      CD-ROM drive).
+    <ol>
+      <li>It then loads the sector into memory at location 0000:7C00.</li>
+      <li>Checks for a 0xAA55 signature at the end of the sector and generates an 
+          error message if not found.<br>(55h = 01010101, AAh = 10101010)</li>
+      <li>Executes the code in this sector.</li>
+    </ol></li>
+</ol>
+<h4>MBR Program</h4>
+<p>This is a very small program that loads the boot code from the active partition.  
+   Details on the MBR code are given below in the section  
+      <a href="#MBRpgm">MBR - Program</a> on this page.</p>
+
+<h4>Boot Program</h4>
+<p>This is a very small program that begins the loading of the OS.  
+   Details on the Boot Program are discussed in 
+      <a href="http://home.att.net/%7Erayknights/pc_boot/w95bboot.htm">Windows 95 Boot Sector</a> on another page.</p>
+<p><i>We will assume a boot from the first hard drive.</i></p>
+
+Go back to the <a href="#TOC">Table of Contents</a>.
+
+
+<h2><a name="MBRhex">Entire MBR record in hex and ASCII</a></h2>
+
+<p>The following is the MBR from the first physical sector 
+(Cylinder 0, Side 0, Sector 1) of a hard drive that came 
+with Windows 95b installed.</p>
+
+<ul>
+  <li>Program code is found at offset locations 00000 to 00010E.</li>
+  <li>The message area is at offset locations 0010F to 00015D.</li>
+  <li>Offsets 00015E to 000182 contain all 0's.</li>
+  <li>Additional program code is found at offset locations 000183 to 000189.</li>
+  <li>Offsets 00018A to 0001BD contain all 0's.</li>
+  <li>The partition table is located at 0001BE to 0001FD (64 bytes).</li>
+  <li>The signature <b>55AA</b> occupies the last two bytes, 0001FE and 0001FF.</li>
+</ul>
+
+
+<pre>OFFSET  0  1  2  3  4  5  6  7    8  9  A  B  C  D  E  F  0123456789ABCDEF
+--------------------------------------------------------------------------
+000000 33 C0 8E D0 BC 00 7C FB - 50 07 50 1F FC BE 1B 7C  3.....|.P.P...|
+000010 BF 1B 06 50 57 B9 E5 01 - F3 A4 CB BE BE 07 B1 04  ...PW...........
+000020 38 2C 7C 09 75 15 83 C6 - 10 E2 F5 CD 18 8B 14 8B  8,|.u...........
+000030 EE 83 C6 10 49 74 16 38 - 2C 74 F6 BE 10 07 4E AC  ....It.8,t....N.
+000040 3C 00 74 FA BB 07 00 B4 - 0E CD 10 EB F2 89 46 25  ..t...........F%
+000050 96 8A 46 04 B4 06 3C 0E - 74 11 B4 0B 3C 0C 74 05  ..F.....t.....t.
+000060 3A C4 75 2B 40 C6 46 25 - 06 75 24 BB AA 55 50 B4  :.u+@.F%.u$..UP.
+000070 41 CD 13 58 72 16 81 FB - 55 AA 75 10 F6 C1 01 74  A..Xr...U.u....t
+000080 0B 8A E0 88 56 24 C7 06 - A1 06 EB 1E 88 66 04 BF  ....V$.......f..
+000090 0A 00 B8 01 02 8B DC 33 - C9 83 FF 05 7F 03 8B 4E  .......3....&#127;..N
+0000A0 25 03 4E 02 CD 13 72 29 - BE 46 07 81 3E FE 7D 55  %.N...r).F....}U
+0000B0 AA 74 5A 83 EF 05 7F DA - 85 F6 75 83 BE 27 07 EB  .tZ...&#127;...u..'..
+0000C0 8A 98 91 52 99 03 46 08 - 13 56 0A E8 12 00 5A EB  ...R..F..V....Z.
+0000D0 D5 4F 74 E4 33 C0 CD 13 - EB B8 00 00 80 19 30 08  .Ot.3.........0.
+0000E0 56 33 F6 56 56 52 50 06 - 53 51 BE 10 00 56 8B F4  V3.VVRP.SQ...V..
+0000F0 50 52 B8 00 42 8A 56 24 - CD 13 5A 58 8D 64 10 72  PR..B.V$..ZX.d.r
+000100 0A 40 75 01 42 80 C7 02 - E2 F7 F8 5E C3 EB 74 49  .@u.B......^..tI
+000110 6E 76 61 6C 69 64 20 70 - 61 72 74 69 74 69 6F 6E  nvalid partition
+000120 20 74 61 62 6C 65 00 45 - 72 72 6F 72 20 6C 6F 61   table.Error loa
+000130 64 69 6E 67 20 6F 70 65 - 72 61 74 69 6E 67 20 73  ding operating s
+000140 79 73 74 65 6D 00 4D 69 - 73 73 69 6E 67 20 6F 70  ystem.Missing op
+000150 65 72 61 74 69 6E 67 20 - 73 79 73 74 65 6D 00 00  erating system..
+000160 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+000170 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+000180 00 00 00 8B FC 1E 57 8B - F5 CB 00 00 00 00 00 00  ......W.........
+000190 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0001A0 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0001B0 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 80 01  ................
+0001C0 01 00 0B 7F BF 0C 3F 00 - 00 00 41 99 40 00 00 00  ...&#127;..?...A.@...
+0001D0 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0001E0 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0001F0 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 55 AA  ..............U.
+</pre>
+
+<p>Go back to the <a href="#TOC">Table of Contents</a>.</p>
+
+<h2><a name="PartTbl">MBR - Partition Table structure</a></h2>
+
+<p>The partition table is 64 bytes consisting of 4 16-byte  entries.
+Each entry has the following format:</p>
+
+<ul>
+  <li>Boot indicator and BIOS drive number (1 byte: must be 0x00 or &gt; 0x80)</li>
+  <li>Starting head number (1 byte, 0 to 255)</li>
+  <li>Starting cylinder number (10 bits, 0 to 1023) and starting sector number 
+         (6 bits, 1 to 63, 0 being invalid)</li>
+  <li>System indicator (1 byte, see examples below)</li>
+  <li>Ending head number (1 byte, 0 to 255)</li>
+  <li>Ending cylinder number (10 bits, 0 to 1023) and ending sector number 
+         (6 bits, 1 to 63, 0 being invalid)</li>
+  <li>Starting sector (4 bytes, relative to beginning of disk)</li>
+  <li>Number of sectors in the partition (4 bytes)</li>
+</ul>
+
+<h3><a name="TblEntries">Partition Table (as 4 16-byte entries):</a></h3>
+<ul>
+  <li>Entry 1 - 80 01 01 00 0B 7F BF 0C 3F 00 00 00 41 99 40 00</li>
+  <li>Entry 2 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</li>
+  <li>Entry 3 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</li>
+  <li>Entry 4 - 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00</li>
+</ul>
+
+<h3><a name="Entry1">Entry 1 - Details:</a></h3>
+<p>The values in the first column in the following table are bytes in the order 
+found in the table entry.</p>
+<center>
+<table summary="Details of first entry in partition table, including 
+       binary and decimal conversion of hex numbers where appropriate and a 
+       description of each parameter." border="1">
+  <caption align="top"><b>Entry 1 in Partition Table</b></caption>
+  <tbody><tr bgcolor="#ffffcc">
+    <th>Bytes</th>  <th>Binary</th>  <th>Decimal</th>  <th>Description</th>
+  </tr>
+
+  <tr>
+    <td>80</td>  <td>&nbsp;</td>  <td>&nbsp;</td>
+    <td>Boot indicator and BIOS drive number (80 = Bootable)</td>
+  </tr>
+
+  <tr>
+    <td>01</td>  <td>&nbsp;</td>  <td>1</td>  <td>Starting head number = 1</td>
+  </tr>
+
+  <tr>
+    <td rowspan="2">0100</td>  <td>00|******|00000000</td>  <td>0</td>
+    <td rowspan="2">Starting cylinder number (10 bits) and<br>
+                  sector number (6 bits) (See notes below)</td></tr>
+  <tr>
+    <td>**|000001|********</td>  <td>1</td></tr>
+  <tr>
+    <td>0B</td>  <td>&nbsp;</td>  <td>&nbsp;</td>  
+    <td>Operating system indicator (Pri DOS, 32-bit FAT)</td></tr>
+  <tr>
+    <td>7F</td>  <td>&nbsp;</td>  <td>127</td>
+    <td>Ending head number</td></tr>
+  <tr>
+    <td rowspan="2">BF0C</td>  <td>10|******|00001100</td>  <td>524</td>
+    <td rowspan="2">Ending cylinder number (10 bits) and<br>
+                  sector number (6 bits) (See notes below)</td></tr>
+  <tr>
+    <td>**|111111|********</td>  <td>63</td></tr>
+  <tr>
+    <td>3F000000</td>  <td>&nbsp;</td>  <td>63</td>
+    <td>Starting sector (relative to beginning of disk)</td></tr>
+  <tr>
+    <td>41994000</td>  <td>&nbsp;</td>  <td>4,233,537</td>
+    <td>Number of sectors in partition</td></tr>
+</tbody></table>
+</center>
+
+<h3><a name="TblNotes">Notes:</a></h3>
+<ul>
+  <li>For Starting/Ending Cylinder, just drop the 6 least significant bits in 
+      the first byte denoted by the *'s and convert to decimal, e.g.<br>
+      <pre>     BF0C = 10|******|00001100 = 1000001100 = 524d</pre></li>
+  <li>For Starting/Ending Sector, just use the 6 least significant bits 
+      in the first byte and convert to decimal.
+      <pre>     BF0C = **|111111|******** = 111111 = 63d</pre></li>
+  <li>The last two entries, Starting sector and Number of sectors, are 4-byte 
+      numbers which are stored in backwards order, i.e. LSB (Least Significant Byte) 
+      first and MSB (Most Significant Byte) last.  Thus the order of the bytes must 
+      be reversed before converting to decimal, e.g.<br>
+      <center>	41994000 -&gt; 00409941h = 4,233,537d </center> </li>
+  <li>Be careful in that an assembler command such as:<br>
+      <pre>     B80042       MOV   AX, 4200</pre>
+      the bytes are in the correct order, i.e. AH=42 and AL=00.  However they are 
+      stored in memory or on disk in backwards order, e.g. B80042.</li>
+</ul>
+<p>Go back to the <a href="#TOC">Table of Contents</a>.</p>
+
+<h2><a name="SysInd">MBR - System Indicator</a></h2>
+<p>The following table is taken from Microsoft KB article Q69912</p>
+<center>
+<table summary="This table lists some of the possible hex values of the 
+       Operating System Indicator in the MBR partition table for DOS/Windows, 
+       including Fdisk names, size range of the partition, FAT type and in which 
+       version of DOS/Windows that it originated." border="1">
+  <caption align="top"><b>DOS/Windows partition types</b></caption>
+  <tbody><tr bgcolor="#ffffcc">
+      <th>System<br>Indicator</th>
+      <th>Fdisk<br>Reports</th>
+      <th>Partition<br>Size</th>
+      <th>FAT<br>Type</th>
+      <th>Starting in<br>version</th></tr>
+
+  <tr><td>01</td><td>PRI DOS</td><td>0-15 MB</td>
+    <td>12-Bit</td><td>MS-DOS 2.0</td></tr>
+
+  <tr><td>04</td><td>PRI DOS</td><td>16-32 MB</td>
+    <td>16-Bit</td><td>MS-DOS 3.0</td></tr>
+
+  <tr><td>05</td><td>EXT DOS</td><td>0-2 GB</td>
+    <td>n/a</td><td>MS-DOS 3.3</td></tr>
+
+  <tr><td>06</td><td>PRI DOS</td><td>32 MB-2 GB</td>
+    <td>16-bit</td><td>MS-DOS 4.0 </td></tr>
+
+  <tr><td>0E</td><td>PRI DOS</td><td>32 MB-2 GB</td>
+    <td>16-bit</td><td>Windows 95</td></tr>
+
+  <tr><td>0F</td><td>EXT DOS</td><td>0-2 GB</td>
+    <td>n/a</td><td>Windows 95</td></tr>
+
+  <tr><td>0B</td><td>PRI DOS</td><td>512 MB - 2 TB</td>
+    <td>32-bit</td><td>OSR2, Win 98</td></tr>
+
+  <tr><td>0C</td><td>EXT DOS</td><td>512 MB - 2 TB</td>
+    <td>32-bit</td><td>OSR2, Win 98</td></tr>
+
+  <tr bgcolor="#ffffcc">
+  <td colspan="5">(Types 0E, 0F, and 0C require extended Int13 support.)</td></tr>
+</tbody></table>
+</center>
+<p>In the following table, DOS FDISK reports NON DOS for all entries.</p>
+<center>
+<table summary="This table lists some of the possible hex values of the 
+       Operating System Indicator in the MBR partition table for other operating 
+       systems than DOS/Windows." border="1">
+  <caption align="top"><b>Examples of Non DOS partition types</b></caption>
+  <tbody><tr bgcolor="#ffffcc"><th>System<br>Indicator</th><th>Operating<br>System</th></tr>
+
+  <tr><td>07</td><td>Windows NT NTFS</td></tr>
+
+  <tr><td>07</td><td>OS/2 HPFS</td></tr>
+
+  <tr><td>81</td><td>Linux</td></tr>
+
+  <tr><td>82</td><td>Linux swap</td></tr>
+
+  <tr><td>83</td><td>Linux (ext2fs/xiafs)</td></tr>
+
+  <tr><td>85</td><td>Linux Extended</td></tr>
+
+  <tr><td>EB</td><td>BeOS</td></tr>
+</tbody></table>
+</center>
+<p>For a more complete listing of Non-DOS partition types see 
+<a href="http://www.mossywell.com/boot-sequence/">Computer Boot Sequence</a>
+and
+<a href="http://www.ata-atapi.com/hiwtab.htm">How It Works: Partition Tables</a>.</p>
+
+<p>Windows 95 supports two new partition types (0E and 0F) to support
+the logical block addressing (LBA) INT13h extensions as specified
+in the Windows 95 Driver Development Kit (DDK). Type 0E is the
+same partition type as 06, and 0F is the same as 05 (especially
+on &lt; 8.4 GB hard drives).  These allow support for hard drives
+larger than 8.4 GB but also can be used on smaller hard drives.</p>
+
+<p>Windows 95 OEM Service Release 2 (OSR2) and Windows 98 support
+two new partition types (0B and 0C) to support the FAT32 file
+system.  Microsoft states that types 0E, 0F, and 0C require extended
+Int13 support. (See Microsoft KB article Q69912)</p>
+
+<p>Note that the DOS/Windows system indicators are not backward compatible.
+ Thus 0E and 0F will not be recognized by WFWG or DOS 6.22 as
+valid MS-DOS type partitions.  Microsoft has issued an article in their Knowledge Base
+- Q148821 "Possible Data Loss with LBA and INT13 Extensions",
+which describes this problem.  In turn, the new system indicators 0B and 0C will not be 
+recognized by the original version of Windows 95.  See the 
+<a href="http://www.firmware.com/support/bios/w95fdisk.htm">Micro Firmware, Inc.</a> 
+web site for additional info on problems with the new system indicators.</p>
+
+<p>Go back to the <a href="#TOC">Table of Contents</a>.</p>
+
+
+<h2><a name="MBRpgm">MBR - Program</a></h2>
+<p>Note that first two words of each partition entry contain the starting 
+drive/head, and cylinder/sector numbers for the partition  and are in the 
+format required by the INT 0x13 call which reads the sector.  Thus the boot 
+indicator serves a dual purpose in that it denotes which partition is 
+bootable and is also used by the program code in the MBR to specify the 
+drive number when calling the BIOS INT 13 function to load the boot sector.  
+Physical drive numbers (used for ROM BIOS functions and DOS device driver 
+DRIVER.SYS) are numbered starting from 0x00 for diskette drives and 0x80 
+for fixed disk drives (0x80 indicates Fixed Disk 0, 0x81 for Disk 1).</p>
+
+<p>The boot record on FAT32 drives requires more than 1 sector and there can 
+be two complete copies of the boot record in the reserved area.  See 
+the FAT 32 section under <a href="#WebRefs">On Line References</a> 
+for more information.</p>
+
+<h3><a name="Overview">Overview of MBR Program Code</a></h3>
+<!-- Make sure the following corresponds to the actual MBR code -->
+<ol>
+  <li>The BIOS loads the MBR into memory location 0000:7C00.</li>
+  <li>The code first copies itself to 0000:0600. (Actually the code starting at
+      7C1B is copied to 061B).  This is necessary because the 
+      boot sector of the active partition will also be loaded to 0000:7C00.</li>
+  <li>Looks for the first active (bootable) partition entry.  Valid values for 
+      the first byte of each entry are 0x00 which indicates not bootable or &gt;= 0x80 
+      (as an absolute number since hex bytes &gt;= 0x80 are actually negative numbers, 
+      which is why the JL instruction in the code) for a bootable partition.  
+      <i>Previous MBR code would only allow for a value of 0x80 to denote active 
+      partitions</i>.</li>
+  <li>Checks to make sure that there is only ONE active partition among the four 
+      possible partitions.  The first byte of each remaining entry must be 0x00,
+      indicating not bootable.</li>
+  <li>Checks the System Indicator byte.
+    <ul>
+      <li>If equal to 0B or 0C, sets [BP+25] to 6 which is the sector offset for a second
+          copy of the boot record found in FAT32 volumes.  Else sets [BP+25] to 0 for 
+          single boot records in FAT16 volumes.</li>
+      <li>If equal to 0E or 0C, checks the BIOS for support of Int 13 extensions.
+        <ul>
+          <li>If Int 13 extensions are not supported or installed:
+            <ul>
+              <li>Resets System Indicator to 06 and uses standard Int 13 functions for CHS 
+                  disk read.</li>
+            </ul></li>
+          <li>Else If Int 13 extensions are supported and installed:
+            <ul>
+              <li>Executes self-modifying code to redirect read to use Int 13 extensions 
+                  and LBA.</li>
+            </ul></li>
+        </ul></li>
+      <li>If any other value, uses standard Int 13 functions for CHS disk read.</li>
+    </ul></li>
+  <li>Loads the first sector of the active partition (Boot Record).  If there is a problem 
+      reading the boot sector in a FAT32 partition, the code will try to read the second 
+      copy of the boot sector.</li>
+  <li>Verifys whether it's a valid boot sector by checking the last word, it 
+      must be the magic number 0xAA55.</li>
+  <li>If any error in the above it prints an error message and goes into an 
+      infinite loop, otherwise it starts execution of the boot code.</li>
+</ol>
+
+<h3><a name="Disassembly">Disassembly of MBR Program Code</a></h3>
+<p>The MBR sector is initially loaded into memory at 0000:7C00 but
+   it immediately relocates itself to 0000:0600.</p>
+<pre>          BEGIN:              NOW AT 0000:7C00, RELOCATE
+
+0000:7C00 33C0        XOR     AX,AX           set AX (Accumulator) to zero
+0000:7C02 8ED0        MOV     SS,AX           SS (Stack Segment) is now zero
+0000:7C04 BC007C      MOV     SP,7C00         set SP (Stack Ptr) to 7C00
+0000:7C07 FB          STI                     allow interrupts
+0000:7C08 50          PUSH    AX              Set ES (Extra Segment) register
+0000:7C09 07          POP     ES                 to 0.  (Used in ES:DI address).
+0000:7C0A 50          PUSH    AX              Set DS (Data Segment) register
+0000:7C0B 1F          POP     DS                 to 0.  (Used in DS:SI address).
+0000:7C0C FC          CLD                     clear Direction Flag (set DF=0)
+0000:7C0D BE1B7C      MOV     SI,7C1B         DS:SI now 0000:7C1B
+0000:7C10 BF1B06      MOV     DI,061B         ES:DI now 0000:061B
+0000:7C13 50          PUSH    AX              will be POPed as CS = 0000
+0000:7C14 57          PUSH    DI              will be POPed as IP = 061B
+0000:7C15 B9E501      MOV     CX,01E5         set CX (Count register) to 485d
+0000:7C18 F3          REPZ                    Move 485 bytes (using MOVSB)
+0000:7C19 A4          MOVSB                      Copy DS:SI to ES:DI, SI+1, DI+1
+0000:7C1A CB          RETF                    POP IP,CS (jmp to CS:IP = 0000:061B)
+
+          NEW_LOCATION:       NOW AT 0000:061B
+
+0000:061B BEBE07      MOV     SI,07BE         point to first partition table entry
+0000:061E B104        MOV     CL,04           there are 4 table entries
+
+          SEARCH_LOOP1:       SEARCH FOR AN ACTIVE ENTRY
+
+0000:0620 382C        CMP     [SI],CH         check boot indicator (CH=0)
+0000:0622 7C09        JL      062D               if &gt;= 80h, jmp to FOUND_ACTIVE:
+0000:0624 7515        JNZ     063B               if &lt;&gt; 00h, jmp to BAD_TABLE:
+0000:0626 83C610      ADD     SI,+10          incr table ptr by 16
+0000:0629 E2F5        LOOP    0620            if another entry, jmp to SEARCH_LOOP1:
+0000:062B CD18        INT     18              GO TO ROM BASIC, no active entry
+
+          FOUND_ACTIVE:       FOUND THE ACTIVE ENTRY
+   Note: DL = drive number (Boot Indicator), DH = Head number for INT 13 call
+
+0000:062D 8B14        MOV     DX,[SI]         set DX for INT 13 call
+0000:062F 8BEE        MOV     BP,SI           set BP to beginning of active entry
+
+          SEARCH_LOOP2:       MAKE SURE ONLY ONE ACTIVE ENTRY
+
+0000:0631 83C610      ADD     SI,+10          incr table ptr by 16d
+0000:0634 49          DEC     CX              decrement counter (for table entries)
+0000:0635 7416        JZ      064D            if end of table, jmp to CHK_SYS_IND:
+0000:0637 382C        CMP     [SI],CH         is this an inactive entry?
+0000:0639 74F6        JZ      0631               yes, continue loop SEARCH_LOOP2:
+
+          BAD_TABLE:          INVALID BOOT INDICATOR OR &gt; 1 ACTIVE ENTRY
+
+0000:063B BE1007      MOV     SI,0710         message "Invalid partition table"
+
+          HANG:               HANG THE SYSTEM LOOP (infinite loop)
+
+0000:063E 4E          DEC     SI              hangs because LODSB increments SI
+
+          DISPLAY_MSG:        DISPLAY MESSAGE LOOP
+
+0000:063F AC          LODSB                   get char of message (put in AL)
+0000:0640 3C00        CMP     AL,00           if end of message
+0000:0642 74FA        JZ      063E               jmp to HANG:
+0000:0644 BB0700      MOV     BX,0007         set screen attributes
+0000:0647 B40E        MOV     AH,0E           output 1 char of message
+0000:0649 CD10        INT     10                 to the display
+0000:064B EBF2        JMP     063F            jmp to DISPLAY_MSG: for next char of message
+
+          CHK_SYS_IND:        CHECK FOR NEW SYSTEM INDICATORS
+
+(old=06-PRI FAT16, new=0E-PRI FAT16, 0F-EXT, 0B-PRI FAT32, 0C-EXT FAT32
+     0E,0F,0C require Int 13 extensions)
+
+0000:064D 894625      MOV     [BP+25],AX      initialize address of 2nd boot copy to 0
+0000:0650 96          XCHG    SI,AX           set SI to 0
+0000:0651 8A4604      MOV     AL,[BP+04]      AL = System Indicator byte in table
+0000:0654 B406        MOV     AH,06           AH = 06 (Pre Win 95 Sys Ind)
+0000:0656 3C0E        CMP     AL,0E           if System Indicator = 0E
+0000:0658 7411        JZ      066B               jmp to CHECK_INT13_EXT:
+0000:065A B40B        MOV     AH,0B           AH = 0B
+0000:065C 3C0C        CMP     AL,0C           if System Indicator = 0C
+0000:065E 7405        JZ      0665               jmp to BOOT_REC2: (ZF=1)
+0000:0660 3AC4        CMP     AL,AH           if System Indicator &lt;&gt; 0B
+0000:0662 752B        JNZ     068F               jmp to CHS_READ:
+0000:0664 40          INC     AX              AH=0B, AL=0B =&gt; AH=0B, AL=0C, ZF=0
+
+          BOOT_REC2:          SECOND BOOT RECORD FOR INT 13 RETRY LOOP
+
+0000:0665 C6462506    MOV     BYTE PTR [BP+25],06   2nd boot rec for Sys Ind 0B or 0C
+0000:0669 7524        JNZ     068F            if Sys Ind = 0B, jmp to CHS_READ:
+
+          CHECK_INT13_EXT:    CHECK FOR SUPPORT OF INT 13 EXTENSIONS
+                                        (System Indicator = 0E or 0C)
+
+0000:066B BBAA55      MOV     BX,55AA         Int 13 extensions installation check.
+0000:066E 50          PUSH    AX              Save AX (= 060E or 0B0C)
+0000:066F B441        MOV     AH,41           Int 13 extension, Function 41h
+0000:0671 CD13        INT     13              Check for Int 13 extensions
+0000:0673 58          POP     AX              Retrieve AX (= 060E or 0B0C)
+0000:0674 7216        JB      068C            if extensions not supported (CF=1), 
+                                                 jmp to RESET_SYS_IND:
+0000:0676 81FB55AA    CMP     BX,AA55         are Int 13 extensions installed?
+0000:067A 7510        JNZ     068C               no, jmp to RESET_SYS_IND:
+0000:067C F6C101      TEST    CL,01           test for extended disk access functions
+                                                    (AH=42h-44h,47h,48h)
+0000:067F 740B        JZ      068C            if Not supported, jmp to RESET_SYS_IND:
+0000:0681 8AE0        MOV     AH,AL           set AH=AL (= 0E or 0C), keep original Sys Ind
+0000:0683 885624      MOV     [BP+24],DL      copy drive # to [BP+24]
+0000:0686 C706A106EB1E  MOV   WORD PTR [06A1],1EEB    Modify code at 0000:06A1
+
+          RESET_SYS_IND:      RESET SYSTEM INDICATOR 0E to 06 or 0C to 0B
+                                    (Int 13 extensions not required for 06 and 0B)
+
+0000:068C 886604      MOV     [BP+04],AH      System Indicator at BP+04
+
+          CHS_READ:           READ BOOT RECORD USING STANDARD INT 13 FUNCTIONS
+                                  (Int 13 extensions not supported or not installed)
+
+0000:068F BF0A00      MOV     DI,000A         INT 13 retry count (10d)
+
+          INT13RETRY:         INT 13 RETRY LOOP
+
+0000:0692 B80102      MOV     AX,0201         read 1 sector into memory
+0000:0695 8BDC        MOV     BX,SP              at ES:BX = 0000:7C00
+0000:0697 33C9        XOR     CX,CX           set CX=0
+0000:0699 83FF05      CMP     DI,+05          if DI &gt; +05 then
+0000:069C 7F03        JG      06A1               skip next instruction (MOV)
+0000:069E 8B4E25      MOV     CX,[BP+25]      set CX = 00 or 06 (06 for FAT32)
+                                              (use second copy of boot record at Sect 06)
+
+        Self-modifying code if BIOS supports Int 13 extensions and they are installed
+           (written by instruction at location 0000:0686)
+0000:06A1 EB1E        JMP     06C1            jmp to LBA_SETUP:
+
+        Original code if Int 13 extensions not supported or not installed
+0000:06A1 034E02      ADD     CX,[BP+02]      starting Cyl and Sector numbers
+0000:06A4 CD13        INT     13              read 1 sector into 0000:7C00
+
+          INT13OK:            INT 13 OK?
+
+0000:06A6 7229        JB      06D1            if INT 13 error (CF=1), jmp to DISK_RESET:
+0000:06A8 BE4607       MOV    SI,0746                "Missing operating system"
+0000:06AB 813EFE7D55AA  CMP   WORD PTR [7DFE],AA55   Look for AA55 at end of OS sector
+0000:06B1 745A         JZ     070D                   jmp to VALID_OS: if valid OS boot code
+0000:06B3 83EF05      SUB     DI,+05          DI = DI - 5
+0000:06B6 7FDA        JG      0692            if DI &gt; 0, jmp to INT13RETRY: (try again)
+
+          INT13_ERROR:        ERROR READING DISK
+
+0000:06B8 85F6        TEST    SI,SI           if SI &lt;&gt; 0 then
+0000:06BA 7583        JNZ     063F               jmp to DISPLAY_MSG:
+0000:06BC BE2707      MOV     SI,0727         "Error loading operating system"
+0000:06BF EB8A        JMP     064B            jmp to DISPLAY_MSG: loop
+
+          LBA_SETUP:          USE 4-BYTE LBA INSTEAD OF CHS IN PARTITION TABLE
+
+0000:06C1 98          CBW                     extend AL=01 to AX=0001 (AX = 0201 =&gt; 0001)
+0000:06C2 91          XCHG    CX,AX           exchange AX and CX registers
+0000:06C3 52          PUSH    DX              save DX = Cyl/Hd for INT 13 CHS read
+0000:06C4 99          CWD                     set DX,AX to 32-bit operand
+0000:06C5 034608      ADD     AX,[BP+08]      LBA Starting sector (low 2 bytes)
+0000:06C8 13560A      ADC     DX,[BP+0A]      LBA Starting sector (high 2 bytes)
+0000:06CB E81200      CALL    06E0            jmp to LBA_READ:
+0000:06CE 5A          POP     DX              restore DX = Cyl/Hd for INT 13 CHS read
+0000:06CF EBD5        JMP     06A6            jmp to INT13OK:
+
+          DISK_RESET:         RESET DISK DRIVE
+
+0000:06D1 4F          DEC     DI              decrement DI (number of tries remaining)
+0000:06D2 74E4        JZ      06B8            if DI = 0, jmp to INT13_ERROR:
+0000:06D4 33C0        XOR     AX,AX           call INT 13 and
+0000:06D6 CD13        INT     13                 do disk reset (Function AH = 0)
+0000:06D8 EBB8        JMP     0692            jmp to INT13RETRY:
+0000:06DA 000080193008                        See Note at end of Program Code
+
+          LBA_READ:           READ ACTIVE PARITION BOOT RECORD USING INT 13 EXTENSIONS
+
+0000:06E0 56          PUSH    SI              save SI
+0000:06E1 33F6        XOR     SI,SI           set SI to 0
+0000:06E3 56          PUSH    SI              starting absolute block number - Highest Word
+0000:06E4 56          PUSH    SI              starting absolute block number - next Word
+0000:06E5 52          PUSH    DX              starting absolute block number - next Word
+0000:06E6 50          PUSH    AX              starting absolute block number - Lowest Word
+0000:06E7 06          PUSH    ES              address of transfer buffer - segment
+0000:06E8 53          PUSH    BX              address of transfer buffer - offset
+0000:06E9 51          PUSH    CX              number of blocks to transfer = 1
+0000:06EA BE1000      MOV     SI,0010         size of packet = 10h = 16d,
+0000:06ED 56          PUSH    SI                 Reserved byte = 00
+0000:06EE 8BF4        MOV     SI,SP           DS:SI = disk address packet (16 bytes)
+0000:06F0 50          PUSH    AX              save AX
+0000:06F1 52          PUSH    DX              save DX
+0000:06F2 B80042      MOV     AX,4200         INT 13 Ext - EXTENDED READ function
+0000:06F5 8A5624      MOV     DL,[BP+24]      set drive number for EXTENDED READ
+0000:06F8 CD13        INT     13              do EXTENDED READ
+0000:06FA 5A          POP     DX              restore DX
+0000:06FB 58          POP     AX              restore AX
+0000:06FC 8D6410      LEA     SP,[SI+10]      restore SP to TOS before "disk address packet"
+0000:06FF 720A        JB      070B            if READ error (CF=1), jmp to END_LBA_READ:
+
+          NEXT_SECTOR:        SET POINTERS FOR NEXT UNREAD SECTOR
+                                   CX = # OF BLOCKS SUCCESSFULLY READ
+
+0000:0701 40          INC     AX              increment AX
+0000:0702 7501        JNZ     0705            if carry out of AX
+0000:0704 42          INC     DX                 increment DX
+0000:0705 80C702      ADD     BH,02           increase BX by 1 sector (512 bytes)
+0000:0708 E2F7        LOOP    0701            CX-1, if CX &lt;&gt; 0, jmp to NEXT_SECTOR:
+0000:070A F8          CLC                     clear carry flag (set CF=0)
+
+          END_LBA_READ:
+
+0000:070B 5E          POP     SI              restore SI
+0000:070C C3          RET                     return from CALL in LBA_SETUP:
+
+          VALID_OS:
+
+0000:070D EB74        JMP     0783            jmp to LOAD_OS:
+
+Message area of MBR is from 070F to 075D (see below)
+All 00 values from 075E to 0782
+
+          LOAD_OS:            LOAD THE OPERATING SYSTEM
+
+0000:0783 8BFC        MOV     DI,SP           set DI = SP
+0000:0785 1E          PUSH    DS              will be POPed as CS = 0000
+0000:0786 57          PUSH    DI              will be POPed as IP = 7C00
+0000:0787 8BF5        MOV     SI,BP           set SI = BP (active entry in table)
+0000:0789 CB          RETF                    JUMP TO THE BOOT SECTOR, i.e.
+                                                 POP IP,CS (jmp to CS:IP = 0000:7C00)
+                                              With SI pointing to active table entry
+
+Message area.  (Offset is from 070F to 075D)
+
+OFFSET  0  1  2  3  4  5  6  7    8  9  A  B  C  D  E  F   0123456789ABCDEF
+---------------------------------------------------------------------------
+000700: .. .. .. .. .. .. .. .. - .. .. .. .. .. .. .. 49                 I
+000710: 6E 76 61 6C 69 64 20 70 - 61 72 74 69 74 69 6F 6E  nvalid partition
+000720: 20 74 61 62 6C 65 00 45 - 72 72 6F 72 20 6C 6F 61   table.Error loa
+000730: 64 69 6E 67 20 6F 70 65 - 72 61 74 69 6E 67 20 73  ding operating s
+000740: 79 73 74 65 6D 00 4D 69 - 73 73 69 6E 67 20 6F 70  ystem.Missing op
+000750: 65 72 61 74 69 6E 67 20 - 73 79 73 74 65 6D 00 00  erating system..
+
+
+All 00 values from 078A to 07BD
+
+Partition table from 07BE to 07FD (64 bytes, 4 16-byte entries)
+AA55 2-byte Signature from 07FE to 07FF
+
+OFFSET  0  1  2  3  4  5  6  7    8  9  A  B  C  D  E  F   0123456789ABCDEF
+---------------------------------------------------------------------------
+0007B0: .. .. .. .. .. .. .. .. - .. .. .. .. .. .. 80 01                ..
+0007C0: 01 00 0B 7F BF 0C 3F 00 - 00 00 41 99 40 00 00 00  ...&#127;..?...A.@...
+0007D0: 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0007E0: 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 00 00  ................
+0007F0: 00 00 00 00 00 00 00 00 - 00 00 00 00 00 00 55 AA  ..............U.
+</pre>
+
+<h3>Note on bytes found at hex offsets 06DA to 06DF (000080193008)</h3>
+<p>I originally labelled these as "appears to be unused bytes" but according to 
+The Starman the last four bytes are what </p>
+<blockquote>"... I first called the 'Mystery Bytes' (but 
+later identified as having the disk number -- 80h -- and a very simple TIME stamp)"</blockquote>
+<blockquote>"If you look at your Win98(se) page, you'll see that the last 3 bytes are different
+there... that's because you first booted into Win98 at a different TIME.  It's in
+DECIMAL and (above) simply means:  08:30:19  (8:30:19 am).  Your Win98
+MBR page has: " 80 06 53 19 "  which means:  First HD drive at 7:53:06 PM.
+I still have no idea HOW the OS uses it, but if you zero-out all four bytes (and
+the two bytes in front of them are also zeros!), they will be changed by a Win98,
+Win95b, Win98SE or ME (iow, MSWIN4.1) OS at some point while you boot
+up the Windows OS."</blockquote>
+
+<p>See Starman's 
+<a href="http://www.geocities.com/thestarman3/asm/mbr/95BMEMBR.htm">Win95B/98/SE/ME 
+MBR Revealed</a> for additional information on these 'Mystery Bytes' and another 
+view of the Windows 95B, 98, 98SE and ME MBR.
+</p>
+
+<p>Go back to the <a href="#TOC">Table of Contents</a>.</p>
+
+<h2><a name="ExtTbls">Extended Partition Tables</a></h2>
+<p>Partition tables are also found outside the MBR.  Every logical partition within an 
+extended partition has its own partition table.  Each of these partition tables has 
+only two entries, one entry points to the partition table in the next logical partition 
+and the other points 
+to the boot record of the current logical partition.  In DOS/Windows, boot records 
+in a logical partition do not have a boot program and are thus not bootable.  This 
+produces a linked list of logical partitions within the extended partition.  Following 
+this list is called "walking the extended partition table".  The OS (not the MBR) reads 
+the linked list of logical partitions to assign drive letters.</p>
+
+<p>Partitions always begin on cylinder boundaries, i.e. Head (or Side) = 0, so partition 
+size must be an integer multiple of cylinder size.  An extended partition table only 
+occupies one sector, the rest of the sectors on this track are unused by DOS/Windows.  
+The standard DOS MBR also occupies only one sector but a Boot Manager or Drive Overlay may 
+replace this MBR and use more than one sector.</p>
+
+<p>See the page <a href="http://home.att.net/%7Erayknights/pc_boot/ext_tbls.htm">Extended Partition Tables</a> for an example of 
+extended partition tables.  This is from a different PC than discussed here (which did 
+not have an extended partition) and on a disk originally formatted under WFWG 3.11.</p>
+
+
+<h2><a name="HDlimit">MBR - Hard Drive Size Limitations</a></h2>
+
+<p>There are several limitations to the size of a hard drive that can be addressed 
+by the BIOS or OS.  These have to do with the MBR partition table, Interrupt 13, 
+the BIOS, the operating system and the hard drive interface and ATA/IDE specifications.
+See <a href="http://home.att.net/%7Erayknights/pc_boot/glossary.htm">PC Glossary</a> for differing definitions of MB and GB as 
+applied to hard drives.
+For limitations not discussed below, such as the 4 GB limit, see 
+<a href="http://www.firmware.com/support/bios/index.htm">PhoenixBIOS</a> which 
+gives BIOS info and hard drive size limitations.
+</p>
+
+<h3><a name="Trans">Translating BIOS</a></h3>
+<p>
+According to the ATA/IDE specifications, the maximum limits are 65536 Cylinders, 
+16 Heads, and 255 Sectors per track.
+The MBR and BIOS INT 13 limits are 1024 Cylinders, 256 Heads, and 63 sectors 
+(255 Heads in practice).  
+A straight combination of these two specs results in limits of 1024 Cylinders, 
+16 Heads, and 63 Sectors giving a total of  528 MB (528,482,304 bytes).  
+To overcome this limitation, a translating BIOS will  decrease the number of 
+Cylinders and increase the number of Heads in the MBR entry while keeping the 
+total size approximately the same.  Thus the parameters reported in the MBR no longer 
+correspond to those at the physical disk interface (which may or may not represent the 
+actual physical layout of the disk itself).
+</p>
+
+<h3><a name="8.4Limit">The 8.4 GB Limit</a></h3>
+<p>
+From the MBR, the maximum number of heads (sides) is 256 (0-255), max cylinders 
+is 1024 (0-1023) and max sectors is 63 (1-63).  With a standard sector size of 
+512 bytes, this results in a maximum total size of  8.4GB  (8,455,716,864 bytes).  
+This applies both to partition size as well as total disk size.
+The last two entries in the MBR are Starting sector (4 bytes, relative to 
+beginning of disk) and Number of sectors in the partition (4 bytes).  
+With a standard sector size of 512 bytes, this results in a maximum total size 
+of 2 terabytes or (2,199,023,255,552 bytes).  Unfortunately the standard hard 
+drive interface using the BIOS INT 13 functions only use the CHS values and 
+ignores these two entries.  The new "INT 13 extensions" (functions 41h to 49h) 
+use LBA addresses instead of CHS to overcome the 8.4 GB limit.
+</p>
+
+<h3><a name="HDoverlay">Hard Drive Overlays</a></h3>
+<p>To overcome the 8.4 GB limitation (actually any size limit including the 528 MB 
+limit) the hard drive manufacturers usually include a drive overlay program that 
+tests the BIOS limitations and if needed will install a program to allow use of the full 
+hard drive space. Examples are:  Ontrack Diskmanager (DDO, Dynamic Drive Overlay) and 
+Microhouse EZ-Drive.</p>
+
+<p>These programs are installed over the MBR.  In order to access the 
+drive properly, the program replaces the MBR code with its own code.  It also 
+replaces INT 13 with its own version.  Since the MBR must be loaded before proper 
+disk access can occur, booting directly from a floppy can cause problems.</p>
+
+<p>When I installed an 8.4 GB Maxtor drive the installation software installed 
+EZ-Drive, which took up 17 sectors and moved the MBR table to sector 2.  I 
+subsequently removed it due to problems when booting from a floppy.  Since the 
+drive capacity was at the 8.4 GB limit, only a small amount of the drive was 
+lost due to the translation scheme that was used in the BIOS.</p>
+
+<h3><a name="INT13Ext">Interrupt 13 Extensions</a></h3>
+<p>Another way to overcome the 8.4 GB limitation requires that the BIOS implement 
+a new INT 13 interface, called the IBM/Microsoft BIOS Extensions.
+This is an extension of the standard INT 13 interface, not a replacement.
+It adds functions 41h to 49h which use 8-byte LBA addresses, instead of 3-byte 
+CHS values, which results in a very large address space (2**64).  At present 
+this is limited to 2**32 (2 TB) due to the 4-byte entries in the MBR as 
+discussed earlier and even further by the ATA/IDE interface, mentioned next.  
+Not all operating systems use the BIOS INT 13 interface to read the disk.  Some have 
+their own drivers.  However note that on boot-up, no software has been loaded 
+as yet so we are still dependent on the limitations in the MBR and BIOS unless 
+the MBR has been replaced with code that supplies its own disk access routines.  
+An example of the use of these extensions is shown in the MBR disassembly code.  
+</p>
+
+<p>Windows 95 uses a driver to support Interrupt 13 extensions when the following 
+conditions are met:</p>
+<ul>
+  <li>The BIOS supports Interrupt 13 extensions.</li>
+  <li>The hard drive supports Interrupt 13 extensions.</li>
+  <li>Logical Block Addressing (LBA) is enabled in the BIOS 
+      (to support Interrupt 13 extensions).</li>
+  <li>The hard drive has over 1024 cylinders.</li>
+  <li>Windows 95 is loaded.</li>
+</ul>
+
+<p>Even if you use FAT32, there is an 8-GB partition limitation unless you obtain 
+a BIOS upgrade that fully supports interrupt 13 extensions.  For additional 
+information about why there is an 8-GB limit, see the following article in the 
+Microsoft Knowledge Base: Q153550 - <i>Hard Disk Limited to 8-GB Partition</i>.</p>
+
+<p>The program code in the MBR uses the following Int 13 extensions:</p>
+<ul>
+  <li>Int 13, function AH=41h, BX=55AAh, INSTALLATION CHECK</li>
+  <li>Int 13, function AH=42h, EXTENDED READ</li>
+</ul>
+
+<p>as well as the standard Interrupt 13 functions: AH=00 (Reset Disk System) and 
+AH=02 (Read Disk Sectors).  See the page <a href="http://home.att.net/%7Erayknights/pc_boot/int13fun.htm">Interrupt 13 Functions</a>
+ for use of these functions.  For more information on these extensions, see the 
+<a href="#WebRefs">On Line References</a> at the end of this page.</p>
+
+<h3><a name="137Limit">The 137 GB Limit</a></h3>
+<p>The current ATA/IDE interface (for IDE and EIDE drives) uses 28 bit addressing 
+which supports drives that are 2**28 * 512 bytes or 137 GB.  As mentioned earlier 
+the maximum limits are 65536 Cylinders, 16 Heads, and 255 Sectors per track.
+Current IDE drives are now up to about 30 GB (or more).  Some ways to overcome 
+this limitation are:</p>
+<ul>
+  <li>The ATA/IDE interface will have to be changed to allow for larger addresses.</li>
+  <li>A larger sector size could be used.</li>
+  <li>The industry could switch to a completely different interface such as 
+      the IEEE 1394 (FireWire) interface.</li>
+</ul>
+<p>Go back to the <a href="#TOC">Table of Contents</a>.</p>
+
+
+<h2><a name="MiscInfo">MBR - Miscellaneous Info</a></h2>
+<ul>
+  <li>The MBR program code in both 
+      <a href="http://www.ata-atapi.com/hiwmbr.htm">How It Works: Master Boot Record (MBR)</a>
+      and 
+      <a href="http://vekoll.saturnus.vein.hu/%7Ecellux/pc-guide/mbr_asm_eng.html"><font color="green">Standard 
+               MBR (Master Boot Record)</font></a> (broken link as of 8/23/03)
+      are identical to each other and to that from computers I have owned 
+      ranging from a 286 running DOS 3.31 to a Pentium using DOS 6.22 and WFWG.  
+      However the program seems to have changed with Windows 95.</li>
+  <li>FDISK /MBR writes the master boot program to the hard disk without altering 
+      the partition table information <b>unless</b> the 2-byte signature at the end of the
+      sector is missing or invalid, in which case it overwrites the partition table entries 
+      with all zeros.  See Microsoft KB articles Q69013 and Q149877.</li>
+  <li>Some software, such as BootIt 2.x can create more that four partitions in the 
+      MBR which is inconsistent with DOS FDISK.</li>
+  <li>Boot Managers such as Linux Lilo, System Commander or OS/2 Boot Manger can 
+      install themselves in the MBR.</li>
+  <li>To avoid drive letters changing when adding a second hard drive, the second 
+      disk can be configured without a Primary Partition, only an Extended Partition.</li>
+</ul>
+
+<p>Go back to the <a href="#TOC">Table of Contents</a>.</p>
+
+
+<h2><a name="WebRefs">On Line References</a></h2>
+
+<p>The Starman has some interesting material on his site at 
+      <a href="http://www.geocities.com/thestarman3/index.html">The Starman's Realm</a>, 
+      including information on DEBUG, SEGMENT:OFFSET, Assembly, FDISK, as well as the 
+      MBR and Boot sectors and other interesting stuff.  He is constantly adding more.  
+      There is now considerable overlap between his pages and mine though there is 
+      information on his pages not included here.  See his 
+      <a href="http://www.geocities.com/thestarman3/asm/mbr/MBR_in_detail.htm">Boot 
+      Records Revealed!</a> for an index into his MBR and boot pages.</p>
+
+<p>For more information on Interrupt 13 extensions as well as other interrupts:</p>
+<ul>
+  <li>Ralf Brown's Interrupt list as ASCII text files can be found at 
+      <a href="http://www-2.cs.cmu.edu/afs/cs.cmu.edu/user/ralf/pub/WWW/files.html">Ralf 
+       Brown's Files</a> and can be downloaded as several ZIP files.  They can also be 
+       found on
+      <a href="http://www-2.cs.cmu.edu/afs/cs.cmu.edu/user/ralf/pub/WWW/ralf-home.html">Ralf 
+       Brown's Home Page</a></li>
+  <li>HTML versions of Ralf Brown's Interrupt list can be found at <br>
+      <a href="http://www.ctyme.com/rbrown.htm">Ralf Brown's Interrupt List - HTML Version</a>
+      and 
+      <a href="http://lrs.fmi.uni-passau.de/support/doc/interrupt-57/INT.HTM">Interrupt Jump 
+       Table</a></li>
+</ul>
+
+<p>For comparison with an older version of the MBR see:</p>
+<ul>
+  <li><a href="http://www.ata-atapi.com/hiwmbr.htm">How It Works: Master Boot Record (MBR)</a>
+      by Hale Landis which contains additional information.</li>
+  <li><a href="http://vekoll.saturnus.vein.hu/%7Ecellux/pc-guide/mbr_asm_eng.html">Standard 
+       MBR (Master Boot Record)</a></li>
+  <li><a href="http://www.xaff.org/GI/mbr.html">Master Boot Record</a> by Xavier Leclercq</li>
+</ul>
+
+<p>For more information on FAT 32 see:</p>
+<ul>
+  <li><a href="http://www.billssite.com/msfat32.htm">The FAT32 File System</a>, a 
+      Market Bulletin by the Windows Product Team, May 1996.</li>
+  <li><a href="http://www.microsoft.com/hwdev/devdes/fat32preinstall.htm">FAT32 on 
+       Preinstalled Systems</a></li>
+  <!-- The following URL is broken as of 8/23/03 -->
+  <!-- <LI><A HREF="http://www.mds.mdh.se/~dtv96nkz/cih/MSfat32info.htm">Information about Fat32 from Microsoft</A></LI> -->
+</ul>
+
+<p>Other sources of information are:</p>
+<ul>
+  <li>A list of MBR Operating System Indicators is given in Table 00652 under 
+      <a href="http://www.ctyme.com/intr/rb-2270.htm">Int 19</a> in Ralf Brown's Interrupt 
+      list.  A more in-depth listing of indicators along with a discussion of "Properties 
+      of partition tables" can be found at Andries Brouwer's 
+      <a href="http://www.win.tue.nl/%7Eaeb/partitions/">Partition types</a>.</li>
+  <li>Hale Landis has also written several other 
+      <a href="http://ata-atapi.com/">Hale's HIW: How It Works Documents</a>
+      which contain a lot of good related information on the boot process.</li>
+  <li>For additional information on hard drive size limitations see 
+      <a href="http://web.inter.nl.net/hcc/J.Steunebrink/bioslim.htm">
+      The BIOS IDE Harddisk Limitations</a> by Jan Steunebrink.</li>
+  <li><a href="http://www.mossywell.com/boot-sequence/">Computer Boot 
+       Sequence</a> provides a lot of detailed information on the boot sequence and 
+       many of the parameters found in the MBR and BPB.  There is also a wealth of 
+       material concerning hard disk geometry and translation.</li>
+  <li><a href="http://www.firmware.com/support/bios/index.htm">Micro Firmware BIOS 
+       Upgrade Support Documents</a> is concerned mainly with Phoenix BIOS support but 
+       also has many interesting documents that deal with related issues such as partition 
+       tables, boot sectors, LBA, CHS, ROM BIOS extensions and many more.  See the 
+       listings for <i>General BIOS-related &amp; Miscellaneous, Hard Drive-Related Info</i> 
+       and <i>CPU-related Info</i></li>
+  <li><a href="http://www.users.intercom.com/%7Eranish/part/primer.htm">Partitioning 
+      Primer</a> by Mikhail Ranish is an interesting web page on hard disks and 
+      partitioning with nice graphics.</li>
+</ul>
+
+<p>Go back to the <a href="#TOC">Table of Contents</a>.</p>
+
+<hr>
+
+<!-- Put in an e-mail address for feedback and comments -->
+<p align="center">If you have comments or suggestions, email me at 
+<i><a href="mailto:RayKnights@IEEE.org">Ray Knights</a></i></p>
+
+<p><a href="http://home.att.net/%7Erayknights/pc_boot/pc_boot.htm">MBR/Boot Index</a></p>
+
+<p><a href="http://home.att.net/%7Erayknights/index.htm">Home Page</a></p>
+
+<p><i>This page was created on 16 December 2000, last updated on 14 July 2004.</i></p>
+</body></html>

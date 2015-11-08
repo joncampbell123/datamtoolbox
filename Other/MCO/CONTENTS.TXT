@@ -1,0 +1,30 @@
+Content type:            Filesystem
+Filesystem Name:         Syntomic Systems MCO filesystem
+Filesystem abbreviation: MCO
+Filesystem status:       ?
+
+MCO was a very simple timesharing system developed by Syntomic Systems
+for a 68000 based computer platform. It came on 5.25" floppies and
+utilitized a low-level format of 5 sectors/track, 1024 bytes/sector,
+using only one side of the floppy to achieve 400KB of storage. The
+filesystem however was built so that it could work on any medium
+regardless of sector size. The floppy drive is treated like one big
+character device, and the filesystem structures often refer to other
+parts of the disk as byte offsets rather than sectors or clusters.
+
+Two versions of the filesystem exist: MCO 1.0 and MCO 2.0. The only
+major difference is the location of the root directory and the
+size of the filesystem structures.
+
+To my knowledge this OS never really saw the light of day, despite it's
+development from 1987 through 1989.
+
+
+./cmcofs.cpp
+
+    A C++ class that can be used to enumerate and read files on an MCO
+    filesystem.
+
+./Documentation/
+
+    Some documentation written by Jonathan Campbell regarding MCO.

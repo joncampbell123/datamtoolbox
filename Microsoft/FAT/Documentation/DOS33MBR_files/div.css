@@ -1,0 +1,69 @@
+/* CSS Document */
+.y_gcss_ovrtr_au {
+	background-color: #FFFFFF;
+	visibility: visible; 
+	width: 195;
+	border-top-width: 1px;
+	border-top-style: solid;
+	border-top-color: 000000;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-right-style: solid;
+	border-bottom-style: solid;
+	border-left-style: solid;
+	border-right-color: 000000;
+	border-bottom-color: 000000;
+	border-left-color: 000000;
+	padding-top: 0px;
+	padding-right: 0px;
+	padding-bottom: 0px;
+	padding-left: 0px;
+	margin: 0px;
+	position: absolute;
+	z-index: 2;
+	top: 0px;
+}
+
+.y_gcss_ovrtr_au_cbox {
+	background-color: #FFFFFF;
+	border-top-width: 1px;
+	border-top-style: solid;
+	border-top-color: #CCCCCC;
+	margin: 0px;
+	padding: 0px;
+	width: 175px;
+
+}
+
+.y_gcss_ovrtr_msthd {
+	width: 195px;
+	visibility: visible;
+	background-color: #FFFFFF;
+	border-top-width: 1px;
+	border-top-style: solid;
+	border-top-color: 000000;
+	border-right-width: 1px;
+	border-bottom-width: 1px;
+	border-left-width: 1px;
+	border-right-style: solid;
+	border-bottom-style: solid;
+	border-left-style: solid;
+	border-right-color: 000000;
+	border-bottom-color: 000000;
+	border-left-color: 000000;
+	position: absolute;
+	z-index: 1;
+	top: 0px;
+
+}
+.y_gcss_ovrtr_cntr {
+	visibility: visible;
+	background-color: #FFFFFF;
+	margin: 0px;
+	padding: 0px;
+	width: 195px;
+	z-index: 0;
+	top: 0px;
+	float: right;
+}

@@ -1,0 +1,17 @@
+@echo off
+del *.plg
+del *.opt
+del *.ncb
+del *.ilk
+del debug\*.obj
+del debug\*.pch
+del debug\*.pdb
+del debug\*.idb
+del debug\*.res
+del release\*.obj
+del release\*.pch
+del release\*.pdb
+del release\*.idb
+del release\*.res
+rmdir debug
+rmdir release

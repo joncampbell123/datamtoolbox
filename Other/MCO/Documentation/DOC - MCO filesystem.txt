@@ -1,0 +1,99 @@
+Syntomic System's MCO disk filesystem structure, as
+reverse-engineered from the source code (MCO 2.x)
+and guessed from disk images (MCO 1.x).
+
+All DWORDs and WORDs unless otherwise noted are in
+big Endian byte order.
+
+This is the first filesystem I've seen that uses byte
+offsets instead of sector numbers or cluster numbers
+when pointing to other structures on the disk. Pointers
+are in bytes, relative to the very beginning of the disk.
+Lengths are also in bytes.
+
+------------------------------------------------------
+at offset 32768 (MCO 1.x)
+------------------------------------------------------
+offset  | size    | contents
+------------------------------------------------------
+-------[ MCO header ]---------------------------------
+0         4         "MCO1"
+4         4         pointer to boot area?
+8         4         pointer to ?
+12        4         pointer to this struct + 24 (32792)
+16        4         pointer to directory
+20        4         pointer to end of directory
+24        4         pointer to free area at the end of the disk
+28        4         size of free area at the end of the disk
+
+
+------------------------------------------------------
+at offset 0 (MCO 2.x)
+------------------------------------------------------
+offset  | size    | contents
+------------------------------------------------------
+0         4         0x4E, 0xF9, 0x00, 0x80 (?)
+4         4         0x62, 0x28, 0x00, 0x00 (?)
+-------[ MCO header ]---------------------------------
+8         4         "MCO2"
+12        4         pointer to boot area
+16        4         pointer to locked block table 
+20        4         length of locked block table
+24        4         pointer to available disk table
+28        4         length of available disk table
+32        4         pointer to directory
+36        4         length of directory
+40        512       general info area
+
+
+------------------------------------------------------
+structure of the locked block table: (MCO 2.x)
+the locked block table is a list with two DWORDs each
+per entry:
+------------------------------------------------------
+offset  | size    | contents
+------------------------------------------------------
+0         4         pointer to locked area
+4         4         length of locked area
+
+
+------------------------------------------------------
+structure of the available disk table: (MCO 2.x)
+this table is also a list, two DWORDs per entry:
+------------------------------------------------------
+offset  | size    | contents
+------------------------------------------------------
+0         4         pointer to available area
+4         4         length of available area
+
+
+------------------------------------------------------
+the directory (and subdirectories) are made of fixed-
+length structures each representing one file: (MCO 1.x)
+------------------------------------------------------
+offset  | size    | contents
+------------------------------------------------------
+0         26        name of file (all NULL if no entry)
+26        4         pointer to file (0 if no entry)
+30        4         size of file
+34        2         0x0000
+
+
+------------------------------------------------------
+the directory (and subdirectories) are made of fixed-
+length structures each representing one file: (MCO 2.x)
+------------------------------------------------------
+offset  | size    | contents
+------------------------------------------------------
+0         16        name of file
+16        2         sub-number of file (?)
+18        4         pointer to file
+22        4         length of file
+26        4         creation day/time of file
+30        4         last access day/time of file
+34        2         control bits:
+                        0=dirty
+                        1=subdirectory
+                        2=sanctified
+                        3=entry needs posting
+

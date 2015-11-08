@@ -1,0 +1,33 @@
+This directory contains common code for most of these projects
+
+./BlockDevice.h
+
+    Defines a common abstract class for block devices
+
+./BlockDeviceFile.cpp
+./BlockDeviceFile.h
+
+    Provides a stock derived class of BlockDevice that
+    uses a SomeFile object as the source of data
+
+./SomeFile.h
+
+    Defines a common abstract class for files
+
+./SomeFileStdio.cpp
+./SomeFileStdio.h
+
+    Provides a stock derived classs of SomeFile that
+    uses fopen/fclose/fseek/fread/fwrite to allow
+    access to an actual file on your hard drive.
+
+./Types.h
+./Types.cpp
+
+    Defines common types used throughout this project.
+    The cpp file contains common routines related to
+    integer types.
+
+./zlib
+
+    ZLIB compression/decompression library v1.2.3

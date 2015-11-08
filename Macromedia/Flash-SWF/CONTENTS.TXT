@@ -1,0 +1,36 @@
+
+C++ class to decompress compressed SWF movies (Flash MX 2003 and later SWF movies)
+
+  ./cmfswfunzip.cpp
+  ./cmfswfunzip.h
+
+C++ class to compress SWF movies (Flash MX 2003 and later SWF movies)
+
+  ./cmfswfzip.cpp
+  ./cmfswfzip.h
+
+C++ class to enumerate tags and data structures in SWF movies
+
+  ./cmfswftags.cpp
+  ./cmfswftags.h
+
+Demonstration program using cmfswfunzip.cpp
+
+  ./swfunzip.cpp
+
+C++ class to compress SWF movies
+
+  ./cmfswfzip.cpp
+  ./cmfswfzip.h
+
+Demonstration program using cmfswfzip.cpp
+
+  ./swfzip.cpp
+
+Demonstration program using cmfswftags.cpp
+
+  ./swftags.cpp
+
+Demonstrates using the tag reader to extract audio and images from SWF files
+
+  ./swfresex.cpp

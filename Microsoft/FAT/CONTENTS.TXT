@@ -1,0 +1,23 @@
+Content type:            Filesystem
+Filesystem Name:         MS-DOS FAT (File Allocation Table) filesystem
+Filesystem abbreviation: FAT (FAT12, FAT16, FAT32)
+Filesystem status:       Widely used on all MS-DOS/Windows media
+
+FAT is the filesystem used by MS-DOS and Microsoft Windows to organize files.
+Several versions exists, the first being FAT12 for drives less than 32MB,
+then FAT16 for drives less than 2GB, and FAT32 for the rest. The FATn
+number refers to the number of bits per entry in the file allocation table.
+
+Files are stored in a very simple manner. They are given a starting cluster.
+To find the next cluster, the program reads the corresponding entry in the
+FAT to find it. The number read is the number of the next cluster for the
+next piece.
+
+./cdosfat.cpp
+
+    A C++ class that demonstrates enumerating files and reading file data.
+
+./Documentation/
+
+    A collection of miscellaneous documentation gathered from various
+    sources across the internet that describe the MS-DOS FAT filesystem.

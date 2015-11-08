@@ -1,0 +1,1794 @@
+<html><head><title>Xavier's programming pages - FAT filesystem</title>
+
+<style name="fr" type="text/javascript">
+	tags.P.textAlign = "justify"
+	tags.P.textIndent = "5%"
+</style></head>
+<body>
+<div align="right"><i>Last update : 26/06/1999</i></div>
+<center><h1>The FAT filesystem</h1></center>
+<h2><u>1. Introduction</u></h2>
+<p>This page doesn't give a full description of the FAT filesystem. It only gives some details
+you need to understand because they are used in some of my programs.<br>
+A good description of the FAT filesystem is given in <a href="http://www.xaff.org/books.html#indispensablePC">The Indispensable PC Hardware Book</a>.
+</p>
+<h2><u>2. The original FAT filesystem</u></h2>
+<p>There are several versions of the FAT filesystem. The one I describe in this chapter
+is the first one. Later versions include VFAT and FAT32. In this version, the files can only
+have a name of 8 bytes maximum plus an extension of 3 bytes maximum.<br>
+</p>
+<h2>2.1. Logical sectors</h2>
+<p>From a physical viewpoint, the data on floppy disks or hard disks is organized in
+tracks, heads and sectors. You can find the data on the disk if you know the track, the head
+and the sector where it is. The number of tracks, heads and sectors is dependent
+on the type of disk. FAT hides theses differences between disks by using the concept of <i>logical sector</i>.
+The physical sectors are assigned a serial number. This serial number
+is the logical sector number corresponding to the physical sector.</p>
+<h2>2.1.1. Floppy disks</h2>
+<p>For floppy disks, the serial numbers of the physical sectors are assigned as follows :<br>
+</p><ul>
+<li>The first physical sector (track 0, head 0, sector 1) is assigned the logical sector number 0.</li>
+<li>The sectors on the same side and on the same track are now assigned
+the following numbers.</li>
+<li>When we have reached the end of the track, we continue with the sectors
+that are on the same track but under the next head. We assign a number to each of these sectors and
+when we have reached the end of the track under the current head, we proceed with the next head.</li>
+<li>When we have counted the sectors under the last head, we go to sector 1, head 0 of the next track and we
+apply the same procedure.</li>
+</ul>
+An example will clarify the method :<br>
+Imagine a 3"1/2 1.44 Mb floppy disk. Such floppies have 80 tracks, 18 sectors per
+track and 2 sides (heads).<br>
+<table border="1">
+<tbody><tr>
+<th>Physical sector</th>
+<th>Logical sector</th>
+</tr>
+<tr>
+<td>track 0, head 0, sector 1</td>
+<td>0</td>
+</tr>
+<tr>
+<td>track 0, head 0, sector 2</td>
+<td>1</td>
+</tr>
+<tr>
+<td>track 0, head 0, sectors 3 to 18</td>
+<td>2-17</td>
+</tr>
+<tr>
+<td>track 0, head 1, sector 1</td>
+<td>18</td>
+</tr>
+<tr>
+<td>track 0, head 1, sectors 2 to 18</td>
+<td>19-35</td>
+</tr>
+<tr>
+<td>track 1, head 0, sector 1</td>
+<td>36</td>
+</tr>
+<tr>
+<td>track 1, head 0, sectors 2 to 18</td>
+<td>37-53</td>
+</tr>
+<tr>
+<td>track 1, head 1, sectors 1 to 18</td>
+<td>54-71</td>
+</tr>
+<tr>
+<td>tracks 2 to 79, all heads and sectors</td>
+<td>72-2879</td>
+</tr>
+</tbody></table>
+<br>
+However, the only way to access data on the disk is by means
+of the track, head and physical sector number. The informations needed
+to do the conversion between logicals sectors and physical sectors are
+the number of sectors per track and the number of heads. These numbers are
+stored in the boot sector. <br>
+The routine that must convert a logical sector number
+into a track, head and physical sector number or conversely can load the boot sector
+(its position is well defined on the disk) to retrieve the number of sectors per track and heads and
+then use the following formulas to do the conversion.<br>
+<ul>
+<li>To convert track, head and physical sector numbers into a logical sector number :<br>
+<code>lsn = S-1 + (T*nh + H) * spt</code><br><br></li>
+<li>To convert a logical sector number into a track, head and sector number :<br>
+<code>S = (lsn mod spt) + 1<br>
+H = (lsn / spt) mod nh<br>
+T = lsn / (spt*nh)</code>
+</li>
+</ul>
+<code>S</code> is the physical sector number<br>
+<code>H</code> is the head number<br>
+<code>T</code> is the track number<br>
+<code>lsn</code> is the logical sector number<br>
+<code>spt</code> is the number of sectors per track<br>
+<code>nh</code> is the number of heads<br>
+<code>/</code> is an integer division<br>
+<code>mod</code> is the modulo operation<br>
+<br>
+<p></p>
+<h2>2.1.2. Hard disks</h2>
+<p>Hard disk can be divided in several partitions. Each partition is treated
+as an individual FAT volume.
+This introduces a minor change to the assignment of the logical sector numbers. The logical sector number 0 is not assigned
+to the first physical sector of the disk but to the first sector of the partition.
+The rules for assigning the next serial number remains unchanged.<br>
+</p>
+<h2>2.2. General organization of a FAT disk</h2>
+A FAT disk has 5 important areas :
+<ol>
+<li>Boot sector and other reserved sectors</li>
+<li>File Allocation Table (FAT)</li>
+<li>One or more copies of the FAT</li>
+<li>Root Directory</li>
+<li>Data area for the files and the subdirectories</li>
+</ol>
+These areas are always in this order on the disk but their length can change from one disk
+to another. The boot sector has the informations necessary to compute their lengths.<br>
+<h2>2.3. The boot sector</h2>
+<p>The boot sector is the name for the first sector of a floppy disk
+(head 0, track 0, sector 1) or for the first sector of a partition in
+the case of a hard disk. This location is accessible without knowing
+the
+exact type of the disk. This makes it appropriate for storing the disk
+parameters, which will then
+give enough information to access the other parts of the disk.<br>
+<br>
+The following table shows the structure of the boot sector :<br>
+<br>
+</p><center>
+<table border="1">
+<tbody><tr>
+<th>Offset</th>
+<th>Content</th>
+<th>Length/Type</th>
+</tr>
+<tr>
+<td>0h</td>
+<td><a href="#jmp">Jump instruction to the boot routine</a></td>
+<td>3 bytes</td>
+</tr>
+<tr>
+<td>3h</td>
+<td><a href="#OEM">OEM name and number</a></td>
+<td>8 bytes</td>
+</tr>
+<tr>
+<td>0Bh</td>
+<td><a href="#bps">Bytes per sector</a></td>
+<td>1 WORD</td>
+</tr>
+<tr>
+<td>0Dh</td>
+<td><a href="#spc">Sectors per cluster</a></td>
+<td>1 BYTE</td>
+</tr>
+<tr>
+<td>0Eh</td>
+<td><a href="#nrs">Reserved sectors</a></td>
+<td>1 WORD</td>
+</tr>
+<tr>
+<td>10h</td>
+<td><a href="#nof">Number of FATs</a></td>
+<td>1 BYTE</td>
+</tr>
+<tr>
+<td>11h</td>
+<td><a href="#norde">Number of root directory entries</a></td>
+<td>1 WORD</td>
+</tr>
+<tr>
+<td>13h</td>
+<td><a href="#nols">Number of logical sectors in the volume</a></td>
+<td>1 WORD</td>
+</tr>
+<tr>
+<td>15h</td>
+<td><a href="#mdb">Medium descriptor byte</a></td>
+<td>1 BYTE</td>
+</tr>
+<tr>
+<td>16h</td>
+<td><a href="#spf">Sectors per FAT</a></td>
+<td>1 WORD</td>
+</tr>
+<tr>
+<td>18h</td>
+<td><a href="#spt">Sectors per track</a></td>
+<td>1 WORD</td>
+</tr>
+<tr>
+<td>1Ah</td>
+<td><a href="#noh">Number of heads</a></td>
+<td>1 WORD</td>
+</tr>
+<tr>
+<td>1Ch</td>
+<td><a href="#nohs">Number of hidden sectors</a></td>
+<td>1 WORD</td>
+</tr>
+</tbody></table>
+</center>
+<p></p>
+<p><b><a name="jmp">Jump instruction to the boot routine</a></b> :<br>The first three
+bytes of the boot sector are either a near jump instruction (E9xxxxh) or a short jump followed
+by a NOP instruction EBxx90h. This instruction makes a jump to the boot code
+located somewhere in the boot sector. This instruction is necessary because
+the execution of a PC starts with the first bytes of the boot sector (see <a href="http://www.xaff.org/GI/bootseq.html">Boot sequence of a PC</a>).<br>
+</p>
+<p><b><a name="OEM">OEM name and number</a></b> :<br>
+This field contain an identity that caracterizes the manufacturer and operating
+system.
+</p>
+<p><b><a name="bps">Bytes per sector</a></b> :<br>
+This word gives the number of bytes per sector. In the PC world, this seems to be always 512.
+</p>
+<p><b><a name="spc">Sectors per cluster</a></b> :<br>
+This byte gives the number of sectors per cluster. You'll learn what is a cluster later.
+</p>
+<p><b><a name="nrs">Reserved sectors</a></b> :<br>
+This word gives the number of reserved sectors. The boot sector is included in this count. This value is usually 1. DOS disks
+always use 1 reserved sector : the boot sector. However, there doesn't seem to be any problem to handle other values.
+</p>
+<p><b><a name="nof">Number of FATs</a></b> :<br>
+This bytes gives the number of FATs (File Allocation Table). Only one FAT is needed but, as
+the data in it is very sensitive, one or more copies are written on the disk. The number of FATs is usually two.
+</p>
+<p><b><a name="norde">Number of root directory entries</a></b> :<br>
+This word gives the number of root directory entries available. The number of root directory entries is
+ fixed. This explains why you can't have more than a certain amount of files and/or subdirectories in the root directory.
+</p>
+<p><b><a name="nols">Number of logical sectors in the volume</a></b> :<br>
+This word gives the number of logical sectors on the disk or in the
+partition in the case of a hard disk.
+The maximum number of sectors in the volume is therefore 65535*512 for
+a disk with 512 bytes per sector. This gives a maximum of about 33 Mb.
+This is not enough for the currently available hard disks. This is the
+reason why the new field <i>Big number of logical sectors in the volume</i>
+has been added. If the word at offset 13h is 0, this means that <i>Big number of logical sectors in the volume</i> gives the number of sectors of the volume.
+</p>
+<p><b><a name="mdb">Medium descriptor byte</a></b> :<br>
+The BIOS and DOS use this entry to determine the disk type. See <a href="#aa">Appendix A</a>
+for a table with the valid values for this byte.
+As some values are used for several disk geometries, it is better to
+use the detailed information of the boot sector than the medium
+descriptor byte.
+</p>
+<p><b><a name="spf">Sectors per FAT</a></b> :<br>
+This word gives the number of sectors per FAT.
+</p>
+<p><b><a name="spt">Sectors per track</a></b> :<br>
+This word gives the number of sectors per track.
+</p>
+<p><b><a name="noh">Number of heads</a></b> :<br>
+This word gives the number of read/write heads.
+</p>
+<p><b><a name="nohs">Number of hidden sectors</a></b> :<br>
+This word gives the number of hidden sectors.
+</p>
+<h2>2.4. The File Allocation Table and clustering</h2>
+<p>
+The File Allocation Table or FAT is the structure used by the filesystem
+to know where the files have been saved on the disk. The FAT links a file to the sectors
+of the disk where its content has been stored.<br>
+There are two versions of FAT, one with entries of 12 bits and another
+with entries of 16 bits. If the entries where used to store a logical sector number,
+the maximum number would be 65535 and if the sectors have 512 bytes, this leads to a maximum
+disk capacity of 33Mb. To overcome this limitation, sectors have been grouped into clusters.
+</p>
+<h2>2.4.1. Clusters</h2>
+<p>A cluster is a set of 1 or more sectors and it is the smallest storage
+unit. A cluster is either free or used, it can't be shared by several
+files. Clustering allows the increase of storage space because the
+FAT refers to cluster numbers instead of logical sector numbers. For instance, if
+you put 4 sectors into each cluster, each cluster will hold 2048 bytes, the maximum cluster number
+is 65535 for FAT16 and this gives a capacity of about 120 Mb.<br>
+The drawback to this method is waste of storage space. If a cluster is only
+partially used by a file, the remaining part of the cluster contains no useful
+data but is unusable for other files. If you use clusters of
+1 sector and the sector size is 512 bytes, this leads to a waste of
+maximum 511 bytes (when the file uses 1 byte of the cluster). But when
+the cluster size is 4 sectors with the same sector size, this leads to a waste
+of maximum 2047 bytes. The more sectors you group into one cluster, the more 
+space you waste. This is especially annoying when you have a lot of small files.
+</p>
+<h2>2.4.2. Structure of the FAT</h2>
+<p>The FAT is a large array of cluster numbers. Each entry of this array is assigned a 
+cluster : cluster number 2 is assigned to FAT entry number 2, cluster
+number 3 is assigned to FAT entry number 3 and so on. The enumeration starts
+with 2 because the first two entries are reserved. They are occupied by
+a copy of the Medium Descriptor Byte followed by 2 bytes (12-bit FAT)
+or 3 bytes (16-bit FAT) with the value FFh. As a consequence, the number
+of the first cluster is 2 and not 0.<br>
+The value stored in an entry of the table indicates the current use of
+the related cluster. The following table shows the possible values of an entry
+and their meanings.<br>
+<br>
+<table border="1">
+<tbody><tr>
+<th>12-bit</th>
+<th>16-bit</th>
+<th>Meaning</th>
+</tr>
+<tr>
+<td>000h</td>
+<td>0000h</td>
+<td>free</td>
+</tr>
+<tr>
+<td>FF0h to FF6h</td>
+<td>FFF0h to FFF6</td>
+<td>reserved</td>
+</tr>
+<tr>
+<td>FF7h</td>
+<td>FFF7h</td>
+<td>bad sector, unusable</td>
+</tr>
+<tr>
+<td>FF8h to FFFh</td>
+<td>FFF8h to FFFFh</td>
+<td>last cluster of a file/directory</td>
+</tr>
+<tr>
+<td>Any other value</td>
+<td>Any other value</td>
+<td>next cluster of a file/directory</td>
+</tr>
+</tbody></table>
+<br>
+A file occupies a given number of clusters. The question is
+which ones and in what order. The solution is to build an ordered list whose elements
+are the clusters occupied by the file.<br>
+The FAT allows to build such a list. If you know the number of a cluster
+of the file (we'll call this cluster the <i>current cluster</i>), the next cluster
+of the file is found by looking at the value of the FAT entry relative to the
+current cluster. As indicated by the above table, if this value is not a value
+with a special meaning, it is the number of the next cluster. In the FAT entry
+relative to this next cluster, the number of the following cluster will be found and so on.
+Using the FAT entries, we build an ordered list of all the clusters occupied
+by the file. This ordered list is called a <i>cluster chain</i>. We know when
+we have reached the end of the chain when we encounter the value FF8h or FFF8h in a FAT
+entry, which means that the current cluster is the last of the chain.<br>
+An info is still missing to allow us to build the chain : the first
+cluster of the file. Whithout it, we don't know where to start. It's the
+Root Directory (see <a href="#rd">Root Directory</a> later) that keeps the
+number of the starting cluster of the file.<br>
+<br>
+<u>Example :</u><br>
+This example shows what the FAT looks like for the storage
+of a 1200 bytes file with 1 sector per cluster and 512 bytes per sector. The FAT is supposed to
+be a 12-bit FAT and the first cluster of the file is cluster number 2.<br>
+The values of the first bytes of the FAT are : F0 FF FF 03 40 00 FF 0F 00 00 00 ...<br>
+We must group these bytes into entries of 12 bits. This gives :<br>
+<table border="1">
+<tbody><tr>
+<td>F0 FF FF</td>
+<td>The medium descriptor byte followed by two bytes with value FFh.</td>
+</tr>
+<tr>
+<td>003</td>
+<td>Entry relative to second cluster : the cluster following cluster 2 is cluster 3.</td>
+</tr>
+<tr>
+<td>004</td>
+<td>Entry relative to third cluster : the cluster following cluster 3 is cluster 4.</td>
+</tr>
+<tr>
+<td>FFF</td>
+<td>Entry relative to fourth cluster : the cluster 4 is the last of the chain.</td>
+</tr>
+</tbody></table>
+<br>
+The file is thus stored in clusters 2, 3 and 4.<br>
+<br>
+Note : The byte ordering is assumed to be little endian. This is why the
+three bytes 03 40 00 give the two entries of 12 bits : 003 and 004. In little
+endian, the most significant bits are stored at the higher memory addresses. Therefore the
+memory representation of these three bytes is : 11000000 00000010 00000000. This gives the first 12 bits :
+1100 0000 0000. In little endian, this is the number 3. The next 12 bits are :
+0010 0000 0000. In little endian, this is the number 4.<br>
+</p>
+<h2>2.4.3. Location of the FATs and the clusters</h2>
+<p>
+To access a file, you still need to learn where to find the FAT and a
+given cluster.<br>
+The first FAT is right after the last reserved sector. The following formula
+gives the logical sector number where the first FAT starts.<br>
+<br>
+<code>lsnFAT = hs + rs</code><br>
+where<br>
+<code>lsnFAT</code> is the number of the logical sector where the FAT
+starts,<br>
+<code>hs</code> is the number of hidden sectors and<br>
+<code>rs</code> is the number of reserved sectors.<br>
+These two values can be found in the boot sector.<br>
+<br>
+There are N copies of the FAT on the disk. N is given by the boot sector.
+The following formula gives the number of the logical sector where the
+i<sup>th</sup> copy starts.<br>
+<br>
+<code>lsnFAT[i] = hs + rs + i*spf</code><br>
+where<br>
+<code>lsnFAT[i]</code> is the number of the logical sector where the 
+i<sup>th</sup> FAT starts (0 =&lt; i &lt; N).<br>
+<code>hs</code> is the number of hidden sectors<br>
+<code>rs</code> is the number of reserved sectors<br>
+<code>spf</code> is the number of sectors per FAT<br>
+<br>
+Each copy occupies the number of sectors given by the boot sector.<br>
+<br>
+To obtain the logical sector number of the first sector of a cluster, the following formula
+can be used :<br>
+<br>
+<code>lsn = hs + rs + N*spf + nsird + (cln - 2)*spc</code><br>
+where<br>
+<code>lsn</code> is the number of the logical sector where the cluster starts<br>
+<code>hs</code> is the number of hidden sectors<br>
+<code>rs</code> is the number of reserved sectors<br>
+<code>N</code> is the number of FATs<br>
+<code>spf</code> is the number of sectors per FAT<br>
+<code>nsird</code> is the number of sectors occupied by the root directory<br>
+<code>cln</code> is the cluster number<br>
+<code>spc</code> is the number of sectors per cluster<br>
+<br>
+The formula is obvious when you know that the first cluster has number 2
+and that it comes right after the Root Directory. The clusters follow eachother
+on the disk.<br>
+Only the term <code>nsird</code> in the above formula is not straightforward to compute. The following
+formula gives an easy way to do so.<br>
+<br>
+<code>nsird = (nerd*32 + bps - 1) / bps</code><br>
+where<br>
+<code>nsird</code> is the number of sectors occupied by the Root Directory<br>
+<code>nerd</code> is the number of entries in the Root Directory<br>
+<code>bps</code> is the number of bytes per sector<br>
+<br>
+Once you've got the number of the logical sector of the first sector of a cluster,
+the other sectors of the cluster are obtained by incrementing the logical sector number because
+the sectors of a cluster follow eachother. As a consequence, the following
+formula gives the logical sector number of the i<sup>th</sup> sector of cluster <code>cln</code>.<br>
+<br>
+<code>lsn = hs + rs + N*spf + nsird + (cln - 2)*spc + i</code><br>
+where<br>
+<code>lsn</code> is the number of the logical sector of the i<sup>th</sup> sector
+of the cluster (0 =&lt; i &lt; spc)<br>
+<code>hs</code> is the number of hidden sectors<br>
+<code>rs</code> is the number of reserved sectors<br>
+<code>N</code> is the number of FATs<br>
+<code>spf</code> is the number of sectors per FAT<br>
+<code>nsird</code> is the number of sectors occupied by the root directory<br>
+<code>cln</code> is the cluster number<br>
+<code>spc</code> is the number of sectors per cluster<br>
+</p>
+
+<h2><a name="rd">2.5. The Root Directory</a></h2>
+<b>Structure of a directory entry</b>
+<table border="1">
+<tbody><tr>
+<th>Offset</th>
+<th>Content</th>
+<th>Length (bytes)</th>
+</tr>
+<tr>
+<td>00</td>
+<td>File Name</td>
+<td>8</td>
+</tr>
+<tr>
+<td>08</td>
+<td>File Extension</td>
+<td>3</td>
+</tr>
+<tr>
+<td>0B</td>
+<td>File Attribute</td>
+<td>1</td>
+</tr>
+<tr>
+<td>0C</td>
+<td>Reserved</td>
+<td>10</td>
+</tr>
+<tr>
+<td>16</td>
+<td>Time of Creation/Last Change</td>
+<td>2</td>
+</tr>
+<tr>
+<td>18</td>
+<td>Date of Creation/Last Change</td>
+<td>2</td>
+</tr>
+<tr>
+<td>1A</td>
+<td>First Cluster of the File</td>
+<td>2</td>
+</tr>
+<tr>
+<td>1C</td>
+<td>File Length</td>
+<td>4</td>
+</tr>
+</tbody></table>
+<h2>Example of a boot sector</h2>
+Here's a copy of the boot sector of a 1.44 Mb floppy formatted by Windows 95.<br>
+<br>
+<table border="1">
+<tbody><tr>
+<th>Offset</th>
+<th>Hexadecimal code</th>
+<th>Instruction or data</th>
+</tr>
+<tr>
+<td>00</td>
+<td>EB 3E 90</td>
+<td></td>
+</tr>
+<tr>
+<td>03</td>
+<td>29 3E 54 29 7D 49 48 43</td>
+<td><a href="#OEM">OEM name and number</a></td>
+</tr>
+<tr>
+<td>0B</td>
+<td>00 02</td>
+<td><a href="#bps">Bytes per sector</a>.<br>
+The number of bytes per sector is 200h (512).</td>
+</tr>
+<tr>
+<td>0D</td>
+<td>01</td>
+<td><a href="#spc">Sectors per cluster</a><br>
+There is 1 sector per cluster</td>
+</tr>
+<tr>
+<td>0E</td>
+<td>01 00</td>
+<td><a href="#nrs">Reserved sectors</a><br>
+There is 1 reserved sector. This means that there are no other sectors reserved
+beside the boot sector.</td>
+</tr>
+<tr>
+<td>10</td>
+<td>02</td>
+<td><a href="#nof">Number of FATs</a><br>
+There are 2 FATs. This means 1 original and 1 copy.</td>
+</tr>
+<tr>
+<td>11</td>
+<td>E0 00</td>
+<td><a href="#norde">Number of root directory entries</a><br>
+There are 00E0h (224) entries available in the root directory.</td>
+</tr>
+<tr>
+<td>13</td>
+<td>40 0B</td>
+<td><a href="#nols">Number of logical sectors in the volume</a><br>
+There are 0B40h (2880) logical sectors on the disk. The capacity of the
+disk is thus 2880*512 = 1474560 bytes.</td>
+</tr>
+<tr>
+<td>15</td>
+<td>F0</td>
+<td><a href="#mdb">Medium descriptor byte</a><br>
+The code F0 stands for a double sided 3"1/2 disk with 80 tracks and 18 sectors per track. This corresponds
+to a 1.44 Mb floppy. This gives 2*80*18 = 2880 sectors, which is consistent with the number written at offset
+13h</td>
+</tr>
+<tr>
+<td>16</td>
+<td>09 00</td>
+<td><a href="#spf">Sectors per FAT</a><br>
+Each FAT occupies 9 sectors. As there are 2 FATs, 18 sectors are used to store them.</td>
+</tr>
+<tr>
+<td>18</td>
+<td>12 00</td>
+<td><a href="#spt">Sectors per track</a><br>
+There are 0012h (18) sectors per track. This is consistent with the Medium Descriptor Byte</td>
+</tr>
+<tr>
+<td>1A</td>
+<td>02 00</td>
+<td><a href="#noh">Number of heads</a><br>
+There are 2 heads. This is consistent with the Medium Descriptor Byte.</td>
+</tr>
+<tr>
+<td>1C</td>
+<td>00 00 00 00</td>
+<td><a href="#nohs">Number of hidden sectors</a><br>
+There are no hidden sectors. The length of this field is 4 bytes because the
+byte at offset 26h is equal to 29h. If it was not the case, this field would be only 2 bytes long.</td>
+</tr>
+<tr>
+<td>20</td>
+<td>00 00 00 00</td>
+<td>This field is only valid if the byte at offset 26h is 29h and if the number of sectors (word at offset 13h) is 0. In this case,
+it gives the number of sectors in the volume. It is used when the number of sectors is too big
+to be stored in a word.</td>
+</tr>
+<tr>
+<td>24</td>
+<td>00</td>
+<td>This is the drive number. The DOS boot code uses the value stored here to
+know if the boot code is located on a floppy disk or on a hard disk. It needs to know this in order
+to know where to load the IO.SYS file from. The value of 0 here indicates the A: drive.</td>
+</tr>
+<tr>
+<td>25</td>
+<td>00</td>
+<td>Reserved</td>
+</tr>
+<tr>
+<td>26</td>
+<td>29</td>
+<td>Extended Boot Record Signature<br>
+If the value stored here is 29h, it indicates that the fields at offset 1Eh and above are valid.</td>
+</tr>
+<tr>
+<td>27</td>
+<td>4D 24 F3 17</td>
+<td>This a serial number. It has nothing to do with the serial number of the floppy given by
+the manufacturer. I don't know what Windows 95 writes here but it changes each time the disk is
+formatted.</td>
+</tr>
+<tr>
+<td>2B</td>
+<td>4E 4F 20 4E 41 4D 45 20 20 20 20</td>
+<td>This is the volume label. In this case, the string is "NO NAME".</td>
+</tr>
+<tr>
+<td>36</td>
+<td>46 41 54 31 32 20 20 20</td>
+<td>This is a string which identifies the filesystem. In this case, the string
+is "FAT12".</td>
+</tr>
+<tr>
+<td>3E</td>
+<td>F1 7D</td>
+<td>This word is a pointer to the name of the file which will be loaded by the
+boot code. As the boot code is loaded at 0000:7C00h, the value 7DF1h points
+to offset 7DF1h - 7C00h = 1F1h of the boot sector. This is the string : "WINBOOT.SYS".</td>
+</tr>
+<tr>
+<td colspan="3"><b>This is the start of the boot code. The short jump
+at offset 0 points to offset 40h.</b></td>
+</tr>
+<tr>
+<td>40</td>
+<td>FA</td>
+<td>cli</td>
+</tr>
+<tr>
+<td>41</td>
+<td>33 C9</td>
+<td>xor cx,cx</td>
+</tr>
+<tr>
+<td>43</td>
+<td>8E D1</td>
+<td>mov ss,cx</td>
+</tr>
+<tr>
+<td>45</td>
+<td>BC FC 7B</td>
+<td>mov sp,7BFC</td>
+</tr>
+<tr>
+<td>48</td>
+<td>16</td>
+<td>push ss</td>
+</tr>
+<tr>
+<td>49</td>
+<td>07</td>
+<td>pop es</td>
+</tr>
+<tr>
+<td>4A</td>
+<td>BD 78 00</td>
+<td>mov bp,0078</td>
+</tr>
+<tr>
+<td>4D</td>
+<td>C5 76 00</td>
+<td>lds si,[bp]</td>
+</tr>
+<tr>
+<td>50</td>
+<td>1E</td>
+<td>push ds</td>
+</tr>
+<tr>
+<td>51</td>
+<td>56</td>
+<td>push si</td>
+</tr>
+<tr>
+<td>52</td>
+<td>16</td>
+<td>push ss</td>
+</tr>
+<tr>
+<td>53</td>
+<td>55</td>
+<td>push bp</td>
+</tr>
+<tr>
+<td>54</td>
+<td>BF 22 05</td>
+<td>mov di,0522</td>
+</tr>
+<tr>
+<td>57</td>
+<td>89 7E 00</td>
+<td>mov [bp],di</td>
+</tr>
+<tr>
+<td>5A</td>
+<td>89 4E 02</td>
+<td>mov [bp+02],cx</td>
+</tr>
+<tr>
+<td>5D</td>
+<td>B1 0B</td>
+<td>mov cl,0B</td>
+</tr>
+<tr>
+<td>5F</td>
+<td>FC</td>
+<td>cld</td>
+</tr>
+<tr>
+<td>60</td>
+<td>F3 A4</td>
+<td>rep movsb</td>
+</tr>
+<tr>
+<td>62</td>
+<td>06</td>
+<td>push es</td>
+</tr>
+<tr>
+<td>63</td>
+<td>1F</td>
+<td>pop ds</td>
+</tr>
+<tr>
+<td>64</td>
+<td>BD 00 7C</td>
+<td>mov bp,7C00</td>
+</tr>
+<tr>
+<td>67</td>
+<td>C6 45 FE 0F</td>
+<td>mov [byte ptr di-02],0F</td>
+</tr>
+<tr>
+<td>6B</td>
+<td>8B 46 18</td>
+<td>mov ax,[bp+18]</td>
+</tr>
+<tr>
+<td>6E</td>
+<td>88 45 F9</td>
+<td>mov [di-07],al</td>
+</tr>
+<tr>
+<td>71</td>
+<td>FB</td>
+<td>sti</td>
+</tr>
+<tr>
+<td>72</td>
+<td>38 66 24</td>
+<td>cmp [bp+24],ah</td>
+</tr>
+<tr>
+<td>75</td>
+<td>7C 04</td>
+<td>jl 7B</td>
+</tr>
+<tr>
+<td>77</td>
+<td>CD 13</td>
+<td>int 13</td>
+</tr>
+<tr>
+<td>79</td>
+<td>72 3C</td>
+<td>jc B7</td>
+</tr>
+<tr>
+<td>7B</td>
+<td>8A 46 10</td>
+<td>mov al,[bp+10]</td>
+</tr>
+<tr>
+<td>7E</td>
+<td>98</td>
+<td>cbw</td>
+</tr>
+<tr>
+<td>7F</td>
+<td>F7 66 16</td>
+<td>mul [word ptr bp+16]</td>
+</tr>
+<tr>
+<td>82</td>
+<td>03 46 1C</td>
+<td>add ax,[bp+1C]</td>
+</tr>
+<tr>
+<td>85</td>
+<td>13 56 1E</td>
+<td>adc dx,[bp+1E]</td>
+</tr>
+<tr>
+<td>88</td>
+<td>03 46 0E</td>
+<td>add ax,[bp+0E]</td>
+</tr>
+<tr>
+<td>8B</td>
+<td>13 D1</td>
+<td>adc dx,cx</td>
+</tr>
+<tr>
+<td>8D</td>
+<td>50</td>
+<td>push ax</td>
+</tr>
+<tr>
+<td>8E</td>
+<td>52</td>
+<td>push dx</td>
+</tr>
+<tr>
+<td>8F</td>
+<td>89 46 FC</td>
+<td>mov [bp-04],ax</td>
+</tr>
+<tr>
+<td>92</td>
+<td>89 56 FE</td>
+<td>mov [bp-02],dx</td>
+</tr>
+<tr>
+<td>95</td>
+<td>B8 20 00</td>
+<td>mov ax,0020</td>
+</tr>
+<tr>
+<td>98</td>
+<td>8B 76 11</td>
+<td>mov si,[bp+11]</td>
+</tr>
+<tr>
+<td>9B</td>
+<td>F7 E6</td>
+<td>mul si</td>
+</tr>
+<tr>
+<td>9D</td>
+<td>8B 5E 0B</td>
+<td>mov bx,[bp+0B]</td>
+</tr>
+<tr>
+<td>A0</td>
+<td>03 C3</td>
+<td>add ax,bx</td>
+</tr>
+<tr>
+<td>A2</td>
+<td>48</td>
+<td>dec ax</td>
+</tr>
+<tr>
+<td>A3</td>
+<td>F7 F3</td>
+<td>div bx</td>
+</tr>
+<tr>
+<td>A5</td>
+<td>01 46 FC</td>
+<td>add [bp-04],ax</td>
+</tr>
+<tr>
+<td>A8</td>
+<td>11 4E FE</td>
+<td>adc [bp-02],cx</td>
+</tr>
+<tr>
+<td>AB</td>
+<td>5A</td>
+<td>pop dx</td>
+</tr>
+<tr>
+<td>AC</td>
+<td>58</td>
+<td>pop ax</td>
+</tr>
+<tr>
+<td>AD</td>
+<td>BB 00 07</td>
+<td>mov bx,0700</td>
+</tr>
+<tr>
+<td>B0</td>
+<td>8B FB</td>
+<td>mov di,bx</td>
+</tr>
+<tr>
+<td>B2</td>
+<td>B1 01</td>
+<td>mov cl,01</td>
+</tr>
+<tr>
+<td>B4</td>
+<td>E8 94 00</td>
+<td>call 14B</td>
+</tr>
+<tr>
+<td>B7</td>
+<td>72 47</td>
+<td>jc 100</td>
+</tr>
+<tr>
+<td>B9</td>
+<td>38 2D</td>
+<td>cmp [di],ch</td>
+</tr>
+<tr>
+<td>BB</td>
+<td>74 19</td>
+<td>je D6</td>
+</tr>
+<tr>
+<td>BD</td>
+<td>B1 0B</td>
+<td>mov cl,0B</td>
+</tr>
+<tr>
+<td>BF</td>
+<td>56</td>
+<td>push si</td>
+</tr>
+<tr>
+<td>C0</td>
+<td>8B 76 3E</td>
+<td>mov si,[bp+3E]</td>
+</tr>
+<tr>
+<td>C3</td>
+<td>F3 A6</td>
+<td>repe cmpsb</td>
+</tr>
+<tr>
+<td>C5</td>
+<td>5E</td>
+<td>pop si</td>
+</tr>
+<tr>
+<td>C6</td>
+<td>74 4A</td>
+<td>je 112</td>
+</tr>
+<tr>
+<td>C8</td>
+<td>4E</td>
+<td>dec si</td>
+</tr>
+<tr>
+<td>C9</td>
+<td>74 0B</td>
+<td>je D6</td>
+</tr>
+<tr>
+<td>CB</td>
+<td>03 F9</td>
+<td>add di,cx</td>
+</tr>
+<tr>
+<td>CD</td>
+<td>83 C7 15</td>
+<td>add di,0015</td>
+</tr>
+<tr>
+<td>D0</td>
+<td>3B FB</td>
+<td>cmp di,bx</td>
+</tr>
+<tr>
+<td>D2</td>
+<td>72 E5</td>
+<td>jl B9</td>
+</tr>
+<tr>
+<td>D4</td>
+<td>EB D7</td>
+<td>jmp AD</td>
+</tr>
+<tr>
+<td>D6</td>
+<td>2B C9</td>
+<td>sub cx,cx</td>
+</tr>
+<tr>
+<td>D8</td>
+<td>B8 D8 7D</td>
+<td>mov ax,7DD8</td>
+</tr>
+<tr>
+<td>DB</td>
+<td>87 46 3E</td>
+<td>xchg [bp+3E],ax</td>
+</tr>
+<tr>
+<td>DE</td>
+<td>3C D8</td>
+<td>cmp al,D8</td>
+</tr>
+<tr>
+<td>E0</td>
+<td>75 99</td>
+<td>jne 7B</td>
+</tr>
+<tr>
+<td>E2</td>
+<td>BE 80 7D</td>
+<td>mov si,7D80</td>
+</tr>
+<tr>
+<td>E5</td>
+<td>AC</td>
+<td>lodsb</td>
+</tr>
+<tr>
+<td>E6</td>
+<td>98</td>
+<td>cbw</td>
+</tr>
+<tr>
+<td>E7</td>
+<td>03 F0</td>
+<td>add si,ax</td>
+</tr>
+<tr>
+<td>E9</td>
+<td>AC</td>
+<td>lodsb</td>
+</tr>
+<tr>
+<td>EA</td>
+<td>84 C0</td>
+<td>test al,al
+</td></tr>
+<tr>
+<td>EC</td>
+<td>74 17</td>
+<td>je 105</td>
+</tr>
+<tr>
+<td>EE</td>
+<td>3C FF</td>
+<td>cmp al,FF</td>
+</tr>
+<tr>
+<td>F0</td>
+<td>74 09</td>
+<td>je FB</td>
+</tr>
+<tr>
+<td>F2</td>
+<td>B4 0E</td>
+<td>mov ah,0E</td>
+</tr>
+<tr>
+<td>F4</td>
+<td>BB 07 00</td>
+<td>mov bx,0007</td>
+</tr>
+<tr>
+<td>F7</td>
+<td>CD 10</td>
+<td>int 10</td>
+</tr>
+<tr>
+<td>F9</td>
+<td>EB EE</td>
+<td>jmp E9</td>
+</tr>
+<tr>
+<td>FB</td>
+<td>BE 83 7D</td>
+<td>mov si,7D83</td>
+</tr>
+<tr>
+<td>FE</td>
+<td>EB E5</td>
+<td>jmp E5</td>
+</tr>
+<tr>
+<td>100</td>
+<td>BE 81 7D</td>
+<td>mov si,7D81</td>
+</tr>
+
+<tr><td>103</td>
+<td>EB E0</td>
+<td>jmp E5</td>
+</tr>
+<tr>
+<td>105</td>
+<td>33 C0</td>
+<td>xor ax,ax</td>
+</tr>
+<tr>
+<td>107</td>
+<td>CD 16</td>
+<td>int 16</td>
+</tr>
+<tr>
+<td>109</td>
+<td>5E</td>
+<td>pop si</td>
+</tr>
+<tr>
+<td>10A</td>
+<td>1F</td>
+<td>pop ds</td>
+</tr>
+<tr>
+<td>10B</td>
+<td>8F 04</td>
+<td>pop [word ptr si]</td>
+</tr>
+<tr>
+<td>10D</td>
+<td>8F 44 02</td>
+<td>pop [word ptr si+02]</td>
+</tr>
+<tr>
+<td>110</td>
+<td>CD 19</td>
+<td>int 19</td>
+</tr>
+<tr>
+<td>112</td>
+<td>BE 82 7D</td>
+<td>mov si,7D82</td>
+</tr>
+<tr>
+<td>115</td>
+<td>8B 7D 0F</td>
+<td>mov di,[di+0F]</td>
+</tr>
+<tr>
+<td>118</td>
+<td>83 FF 02</td>
+<td>cmp di,0002</td>
+</tr>
+<tr>
+<td>11B</td>
+<td>72 C8</td>
+<td>jl E5</td>
+</tr>
+<tr>
+<td>11D</td>
+<td>8B C7</td>
+<td>mov ax,di</td>
+</tr>
+<tr>
+<td>11F</td>
+<td>48</td>
+<td>dec ax</td>
+</tr>
+<tr>
+<td>120</td>
+<td>48</td>
+<td>dec ax</td>
+</tr>
+<tr>
+<td>121</td>
+<td>8A 4E 0D</td>
+<td>mov cl,[bp+0D]</td>
+</tr>
+<tr>
+<td>124</td>
+<td>F7 E1</td>
+<td>mul cx</td>
+</tr>
+<tr>
+<td>126</td>
+<td>03 46 FC</td>
+<td>add ax,[bp-04]</td>
+</tr>
+<tr>
+<td>129</td>
+<td>13 56 FE</td>
+<td>adc dx,[bp-02]</td>
+</tr>
+<tr>
+<td>12C</td>
+<td>BB 00 07</td>
+<td>mov bx,0700</td>
+</tr>
+<tr>
+<td>12F</td>
+<td>53</td>
+<td>push bx</td>
+</tr>
+<tr>
+<td>130</td>
+<td>B1 04</td>
+<td>mov cl,04</td>
+</tr>
+<tr>
+<td>132</td>
+<td>E8 16 00</td>
+<td>call 14B</td>
+</tr>
+<tr>
+<td>135</td>
+<td>5B</td>
+<td>pop bx</td>
+</tr>
+<tr>
+<td>136</td>
+<td>72 C8</td>
+<td>jc 100</td>
+</tr>
+<tr>
+<td>138</td>
+<td>81 3F 4D 5A</td>
+<td>cmp [word ptr bx],5A4D</td>
+</tr>
+<tr>
+<td>13C</td>
+<td>75 A7</td>
+<td>jne E5</td>
+</tr>
+<tr>
+<td>13E</td>
+<td>81 BF 00 02 42 4A</td>
+<td>cmp [word ptr bx+0200],4A42</td>
+</tr>
+<tr>
+<td>144</td>
+<td>75 9F</td>
+<td>jne E5</td>
+</tr>
+<tr>
+<td>146</td>
+<td>EA 00 02 70 00</td>
+<td>jmp 0070:0200</td>
+</tr>
+<tr>
+<td>14B</td>
+<td>50</td>
+<td>push ax</td>
+</tr>
+<tr>
+<td>14C</td>
+<td>52</td>
+<td>push dx</td>
+</tr>
+<tr>
+<td>14D</td>
+<td>51</td>
+<td>push cx</td>
+</tr>
+<tr>
+<td>14E</td>
+<td>91</td>
+<td>xchg cx,ax</td>
+</tr>
+<tr>
+<td>14F</td>
+<td>92</td>
+<td>xchg dx,ax</td>
+</tr>
+<tr>
+<td>150</td>
+<td>33 D2</td>
+<td>xor dx,dx</td>
+</tr>
+<tr>
+<td>152</td>
+<td>F7 76 18</td>
+<td>div [word ptr bp+18]</td>
+</tr>
+<tr>
+<td>155</td>
+<td>91</td>
+<td>xchg cx,ax</td>
+</tr>
+<tr>
+<td>156</td>
+<td>F7 76 18</td>
+<td>div [word ptr bp+18]</td>
+</tr>
+<tr>
+<td>159</td>
+<td>42</td>
+<td>inc dx</td>
+</tr>
+<tr>
+<td>15A</td>
+<td>87 CA</td>
+<td>xchg dx,cx</td>
+</tr>
+<tr>
+<td>15C</td>
+<td>F7 76 1A</td>
+<td>div [word ptr bp+1A]</td>
+</tr>
+<tr>
+<td>15F</td>
+<td>8A F2</td>
+<td>mov dh,dl</td>
+</tr>
+<tr>
+<td>161</td>
+<td>8A 56 24</td>
+<td>mov dl,[bp+24]</td>
+</tr>
+<tr>
+<td>164</td>
+<td>8A E8</td>
+<td>mov ch,al</td>
+</tr>
+<tr>
+<td>166</td>
+<td>D0 CC</td>
+<td>ror ah,1</td>
+</tr>
+<tr>
+<td>168</td>
+<td>D0 CC</td>
+<td>ror ah,1</td>
+</tr>
+<tr>
+<td>16A</td>
+<td>0A CC</td>
+<td>or cl,ah</td>
+</tr>
+<tr>
+<td>16C</td>
+<td>B8 01 02</td>
+<td>mov ax,0201</td>
+</tr>
+<tr>
+<td>16F</td>
+<td>CD 13</td>
+<td>int 13</td>
+</tr>
+<tr>
+<td>171</td>
+<td>59</td>
+<td>pop cx</td>
+</tr>
+<tr>
+<td>172</td>
+<td>5A</td>
+<td>pop dx</td>
+</tr>
+<tr>
+<td>173</td>
+<td>58</td>
+<td>pop ax</td>
+</tr>
+<tr>
+<td>174</td>
+<td>72 09</td>
+<td>jc 17F</td>
+</tr>
+<tr>
+<td>176</td>
+<td>40</td>
+<td>inc ax</td>
+</tr>
+<tr>
+<td>177</td>
+<td>75 01</td>
+<td>jne 17A</td>
+</tr>
+<tr>
+<td>179</td>
+<td>42</td>
+<td>inc dx</td>
+</tr>
+<tr>
+<td>17A</td>
+<td>03 5E 0B</td>
+<td>add bx,[bp+0B]</td>
+</tr>
+<tr>
+<td>17D</td>
+<td>E2 CC</td>
+<td>loop 14B</td>
+</tr>
+<tr>
+<td>17F</td>
+<td>C3</td>
+<td>ret</td>
+</tr>
+<tr>
+<td>180</td>
+<td>03</td>
+<td></td>
+</tr>
+<tr>
+<td>181</td>
+<td>18</td>
+<td></td>
+</tr>
+<tr>
+<td>182</td>
+<td>01</td>
+<td></td>
+</tr>
+<tr>
+<td>183</td>
+<td>27</td>
+<td></td>
+</tr>
+<tr>
+<td>184</td>
+<td>0D 0A 44 69 73 71 75 65 20 6E 6F 6E 20 73 79 73 74 65 6D 65 20 FF</td>
+<td>The string : "Disque non systeme" preceeded by a carriage return and followed by FFh</td>
+</tr>
+<tr>
+<td>19A</td>
+<td>0D 0A 45 72 72 65 75 72 20 64 27 45 2F 53 20 20 FF</td>
+<td>The string : "Erreur d'E/S" preceeded by a carriage return and followed by FFh.</td>
+</tr>
+<tr>
+<td>1AB</td>
+<td>0D 0A 52 65 6D 70 6C 61 63 65 7A 2D 6C 65 20 65 74 20 61 70 70 75 79
+65 7A 20 73 75 72 20 75 6E 65 20 74 6F 75 63 68 65 20 20 0D 0A 00</td>
+<td>The string : "Remplacez-le et appuyez sur une touche", preceded by a carriage return and
+followed by a carriage return and 0.</td>
+</tr>
+<tr>
+<td>1D8</td>
+<td>49 4F 20 20 20 20 20 20 53 59 53</td>
+<td>The filename : "IO.SYS"</td>
+</tr>
+<tr>
+<td>1E3</td>
+<td>4D 53 44 4F 53 20 20 20 53 59 53</td>
+<td>The filename : "MSDOS.SYS"</td>
+</tr>
+<tr>
+<td>1EE</td>
+<td>80 01 00</td>
+<td></td>
+</tr>
+<tr>
+<td>1F1</td>
+<td>57 49 4E 42 4F 4F 54 20 53 59 53</td>
+<td>The filename : "WINBOOT.SYS"</td>
+</tr>
+<tr>
+<td>1FC</td>
+<td>00 00 55 AA</td>
+<td></td>
+</tr>
+</tbody></table>
+Note : when a jump is made in this table, the value that follows the instruction
+refers to the offset in the table, you don't have to add this value to the offset
+of the instruction (i.e. je 48h sends you to offset 48h).<br>
+<p>
+<b>40-49 :</b><br>
+The code disables the interrupts while it initializes the segment registers.
+ss = es = 0 and sp = 7BFCh. The boot code is loaded by the bootstrap at 
+0000:7C00, the stack begins 4 bytes before this position. These 4 bytes, at 
+0000:7BFC will be used later.<br>
+<br>
+<b>4A-4D :</b><br>
+The pointer at 0000:0078 is loaded into ds:si. This is the pointer
+to the drive parameter table.<br>
+<br>
+<b>50-53 :</b><br>
+ds, si, ss and bp are pushed onto the stack. They don't seem to be popped afterwards so
+I don't know what this is used for.<br>
+<br>
+<b>54-5A :</b><br>
+The address of the drive parameter table is now 0000:0522.<br>
+<br>
+<b>5D-60 :</b><br>
+The drive parameter table, whose length is 12 bytes, is moved from its old location to its new location
+(0000:0522).<br>
+<br>
+<b>62-64 :</b><br>
+ds = 0 and bp = 7C00h. bp points to the start of the image of the boot sector. The value of bp
+won't change anymore, so you can keep in mind that bp points to the boot sector.<br>
+<br>
+<b>67-6E :</b><br>
+This portion of the code sets the parameters of the drive parameters table 
+in function of 
+the data of the boot sector of the disk.<br>
+Due to the <i>rep movsb</i> instruction, di points to the end of the drive
+parameters table.<br>
+di-02 points to the 11<sup>th</sup> byte of the table, this is the head settle time. 
+The head settle time is set to 15 milliseconds.<br>
+bp+18 points to the number of sectors per track. di-07 points to the 4<sup>th</sup> byte of the parameter table, this is the number of sectors per track.
+This number is set to the number given by the boot sector.<br>
+<br>
+<b>71 :</b><br>
+This reenables the interrupts.<br>
+<br>
+<b>72-75 :</b><br>
+This code is a mystery for me. Anyway, for a floppy, [bp+24h] should be 0 and ah too, and the jump
+shouldn't be made.<br>
+<br>
+<b>77-79 :</b><br>
+As ah and dl are equal to 0, the call to <a href="http://www.xaff.org/GI/biosref.html#int13-00">interrupt 13h</a> recalibrates the floppy drive. If the recalibration fails,
+a jump is made to the code at B7.<br>
+<br>
+<i><code>Note : the code that follows is particularly interesting as it shows how to
+find the start of the Root Directory and the start of the space where the files are stored.</code></i><br>
+<br>
+<b>7B-7F :</b><br>
+The number of FATs is transferred into al. al is then sign-extended and
+ax is multiplied by the number of sectors per FAT. dx:ax is now the number
+of sectors used to store all the FATs.<br>
+<br>
+<b>82-85 :</b><br>
+The number of hidden sectors is added to dx:ax. The number of hidden sectors occupies 4 bytes
+because the byte at offset 26h of the boot sector is 29h. Otherwise, it would be only 2 bytes long.<br>
+<br>
+<b>88-92 :</b><br>
+The number of reserved sectors is added to dx:ax. At this stage, dx:ax is the
+number of the first logical sector of the Root Directory.<br>
+ax and dx are pushed onto the stack. They are also stored at 0000:7BFC and 0000:7BFE, the
+4 bytes between the bottom of the stack and the boot code.<br>
+<br>
+<b>95-A8 :</b><br>
+ax is loaded with the value 20h (32) because an entry of the Root Directory is
+32 bytes long. si is loaded with the number of entries of the Root Directory. After ax has been multiplied
+by si, dx:ax is the length of the Root Directory measured in bytes.<br>
+bx is loaded with the number of bytes per sector.<br>bx
+is then added to ax and then ax is decremented by one. This is a little
+trick. The number of bytes used for the Root Directory
+is not required to be a multiple of the number of bytes per sector. If
+it's not a multiple, the last sector is not completely used. But even
+if the Root Directory only uses one byte
+of the last sector, this sector must be reserved. By adding the number
+of bytes per sector - 1 to the number of bytes of the Root Directory,
+you are sure to get the correct number of sectors after a division by
+the number of sectors per byte. In our case, the number of entries in
+the Root
+Directory is 224 and the number of bytes per sector 512. 7168 bytes are
+used to store the Root Directory. 7168 is exactly 14*512. 14 sectors
+are thus needed. If we add 511 (number of bytes
+per sectors - 1) to 7168, we get 7679. A division by 512 gives 14,
+which is the result expected. Now imagine we have 225 entries instead
+of 224. 7200 bytes are needed for the Root Directory.
+14 full sectors are used and 32 bytes of the last sector, this means 15
+sectors. We add 511 to 7200, this gives 7711. We divide this result by
+512 and we get the correct answer :15.<br>
+Now let's get back to our code.<br>
+We divide dx:ax by bx. ax is now the number of sectors used by the Root Directory.<br>
+We add this value to the value stored at 0000:7BFC. The value stored there is now the number of
+the first logical sector that can be used to store the content of a file.<br>
+<br>
+<b>AB-B7 :</b><br>
+The function at 14Bh loads a logical sector of the disk. dx:ax is the number of the
+sector, bx is the memory location where the sector will be written and cx is the
+number of sectors to read.<br>
+In this case, we pop ax and dx. If you remember, this is the number of the first logical sector
+of the Root Directory. bx is set to 0700h. di is also set to 0700h but it is not used
+by the function at 14Bh. It's for a future use. cl is set to 1. One sector will thus be read
+from the disk.<br>
+If the carry is set, it means there was an error. The code at offset 100h handles
+this situation. This is why we have the instruction <i>jc 100</i>.<br>
+<br>
+<b>B9-BB :</b><br>
+We go through the Root Directory entries to find a given file. To do so,
+we use the register <i>di</i> which points to the current position in the Root Directory. Initially, it is 0700h, the start
+of the Root Directory in memory.<br>
+As the content of register <i>ch</i> is 0, we compare [di] to 0. For the FAT filesystem, an
+entry starting with 0 means the end of the Root Directory.
+If we encounter a 0, it means that we have gone through all the directory without
+finding the file. The code at offset 0D6h handles this situation hence the instruction
+<i>je D6</i>.<br>
+<br>
+<b>BD-C6 :</b><br>
+If the entry doesn't start with 0, we compare it with the filename. We compare
+the 11 first bytes of the entry with the filename because these are the bytes which hold
+the filename.<br>
+The comparison is made by the <i>repe cmpsb</i> instruction. As a consequence, the registers
+<i>si</i> and <i>di</i> must hold the start addresses of the strings to compare. <i>di</i> is already pointing
+to the current entry of the Root Directory and <i>si</i> is loaded with the content of [bp+3E]. This is the word at offset 
+3Eh of the boot sector. <i>si</i> is thus equal to 1DF7h. This value corresponds to the offset
+1F1h of the boot sector because 7DF1h - 7C00h = 1F1h. And at offset 1F1h of the boot sector, we
+find the string "WINBOOT.SYS". The file we are looking for is thus "WINBOOT.SYS".
+The register <i>cl</i> must hold the length of the strings : 11 bytes in the present case.<br>
+If we have found the file, we jump at offset 112h.<br>
+The content of tbe register <i>si</i> saved on the stack and then restored.<br>
+<br>
+<b>C8-C9 :</b><br>
+<i>si</i> is the number of entries in the Root Directory that have not been examined yet. We decrement it by 1 as
+we have just tested one entry. If <i>si</i> reaches 0, then
+there are no more entries and the file has not been found. The code at offset D6h handles this situation.<br>
+<br>
+<b>CB-D4 :</b><br>
+The result of the 2 additions is that <i>di</i> now points to the next entry of
+the Root Directory. <i>di</i> is then compared to <i>bx</i>. This is to make sure that
+we have not reached the end of the sector of the Root Directory that was loaded into
+memory by the call to the function at offset 14Bh. As a result of this call, bx points to the
+end of the loaded sector. If we are not at the end of the loaded sector, we return to offset
+BDh, where a new comparison is made between the file name and the entry where the new <i>di</i> points to.<br>
+If we are at the end of the loaded sector, we must load the next sector. Therefore we return at offset ADh. The
+registers <i>dx</i> and <i>ax</i> have not been modified since the last call to the function at
+14Bh. As a consequence, they hold the number of the next logical sector to load.<br>
+<br>
+<b>D6-E0 :</b><br>
+This code is called when we reach the end of the Root Directory. cx is reset to 0.
+The word at offset 3Eh of the boot sector is set to 7DD8h. Remember that the offset 3Eh holds the
+pointer to the file name. We are now looking for another filename. This file name is located at
+offset 7DD8h - 7C00h = 1D8h of the boot sector. This is the string "IO.SYS".<br>
+We compare the old value of offset 3Eh with the new one. If they are the same, it means
+that we have already done the previous procedure before. We have looked for "IO.SYS" but we haven't found it, so we are
+here for the second time.<br>
+If they are not the same, then we must look for "IO.SYS" in the Root Directory. To do so, we return
+to the code at offset 7Bh. This means that we are almost doing everything again but
+with another value of the word at offset 3Eh of the boot sector.<br>
+<br>
+<b>E2 :</b><br>
+We reach this point if the files "WINBOOT.SYS" and "IO.SYS" haven't been found.
+The register <i>si</i> is loaded with the value 7D80h. This is a pointer
+to offset 7D80h - 7C00h = 180h of the boot sector. The value stored there is 3.<br>
+<br>
+<b>E5-F9 :</b><br>
+The register <i>ax</i> is loaded with the content of the memory location
+indicated by <i>si</i>. <i>ax</i> is then added to <i>si</i>. <i>ax</i> is again
+loaded with the content of [si].<br>
+<i>al</i> is tested. If it is equal 0, the code at offset 105h is executed. If it is equal to
+FFh, the code at offset FBh is executed. If it is not equal to one of these
+values the content of <i>al</i> is displayed by a call to <a href="http://www.xaff.org/GI/biosref.html#int10-0E">interrupt 10</a>. After that, we return
+to offset E9h. The instruction <i>lodsb</i> loads the next character which will then be displayed. This loop
+only stops when <i>al</i> is loaded with 0 or FFh.<br>
+</p><ul>
+<li>If this code part is executed right after the instruction at E2, the content of register <i>si</i> is
+initially 7D80, the <i>lodsb</i> instruction increments it by 1 while it loads <i>al</i> with 3
+(the content of the boot sector at offset 180h). After the addition, <i>si</i>
+is equal to 7D84. This
+is a pointer to the string "Disque non systeme". The result of the code
+is the display of a warning message saying
+that the disk is not a system disk. This happens when the boot code
+doesn't find "WINBOOT.SYS" or "IO.SYS". The string ends with FFh, the
+code
+at FBh is thus executed.</li>
+<li>If this code is executed after the code at FBh, the content of <i>si</i> is initially 7D83h and after the addition it is
+7DABh. This is a pointer to the string which ask the user to replace the
+disk by a system disk and to hit a key. The string ends by 0 so the code at
+offset 105h is executed.</li>
+<li>If this code is executed after the code at 100h, the content of <i>si</i> is initially 7D81h and after the addition it is
+7D9Ah. This is a pointer to the string which indicates that an I/O error has occured. The string ends by FFh so the code at
+offset FBh is executed.</li>
+</ul>
+<br>
+<b>FB-FE :</b><br>
+The register <i>si</i> is loaded with 7D83h and the code at E5 is executed. The content of
+0000:7D83h is the content of offset 183h of the boot sector : 27h.<br>
+<br>
+<b>100-103 :</b><br>
+The register <i>si</i> is loaded with 7D81h and the code at E5 is then
+executed. The content of 0000:7D81h is the content of offset 7D81h - 7C00h = 181h of the
+boot sector : 18h.<br>
+<br>
+<b>105-110 :</b><br>
+This code is called whenever an error hinders the launch of the operating system. 
+The code waits for the user to hit a key and then restarts the computer.
+See <a href="http://www.xaff.org/GI/biosref.html#int16-00">Interrupt 16h, function 00h</a> and
+<a href="http://www.xaff.org/GI/biosref.html#int19">Interrupt 19h</a> for more details about
+these two BIOS functions.<br>
+<br>
+<b>112-11B :</b><br>
+This code is executed when the file we are looking for has been found.
+The number of the first cluster of the file is moved into <i>di</i>. The content of <i>di</i> is compared
+with 0002h. A cluster number is never less than 2. If it is less than 2,
+we have an error and the code at E5h is executed. It displays the string "Disque non systeme".<br>
+<br>
+<b>11D-146 :</b><br>
+We have found the file and the cluster number is valid. We will
+load the first 4 sectors of the file into memory. We move <i>di</i> into <i>ax</i> and
+decrement <i>ax</i> twice. This is because the first cluster of a FAT disk has index
+2. We move the number of sectors per cluster into <i>cl</i>. We multiply
+<i>ax</i> by <i>cx</i>. <i>dx:ax</i> is now the number of sectors occupied
+by the clusters before the cluster we want to load. We add the number of the
+logical sector which comes right after the Root Directory, which is the first logical sector of
+the data area. <i>dx:ax</i> is now the number of the logical sector we want to load.
+We want to load the 4 first sectors of the file at address 0000:0700h. We move
+700h into <i>bx</i> and 04h into <i>cl</i> and we call the function at
+offset 14Bh. If there was an error, we jump at offset 100h. If there wasn't any error, the content of
+the four first sectors of the file has been transferred at 0000:0700h.<br>
+<b>Important note :</b> The code used here assumes that the four sectors of
+the file are contiguous. But the file might have been fragmented. In this case,
+the file will not have been correctly loaded into memory. The file that
+is loaded by this program must not be fragmented.<br>
+The program now test if some words have given values to make sure the correct
+file has been loaded and then jumps to the memory location where it has loaded
+the second sector of the file. The boot code has thus finished its job and 
+passed control to the loaded file.<br>
+<br>
+<b>14B-17F :</b><br>
+This code is the code of a function that loads a given number of logical
+sectors from the disk. The first logical sector to read is given in the
+registers <i>dx:ax</i>. <i>cx</i> is the number of sectors to read. <i>es:bx</i> is
+the address where the sectors will be loaded.<br>
+
+<br>
+<br>
+<p></p>
+<h2><a name="aa">Appendix A</a></h2>
+These are the values of the Medium Descriptor Byte.<br>
+<br>
+<table border="1">
+<tbody><tr>
+<th>Value</th>
+<th>Medium</th>
+</tr>
+<tr>
+<td>F0h</td>
+<td>3"1/2, double sided, 80 tracks, 18 sectors per track<br>
+3"1/2, double sided, 80 tracks, 36 sectors per track</td>
+</tr>
+<tr>
+<td>F8h</td>
+<td>Hard disk</td>
+</tr>
+<tr>
+<td>F9h</td>
+<td>5"1/4, double sided, 80 track, 15 sectors per track<br>
+3"1/2, double sided, 80 tracks, 9 sectors per track</td>
+</tr>
+<tr>
+<td>FAh</td>
+<td>5"1/4, single sided, 80 tracks, 8 sectors per track<br>
+3"1/2, single sided, 80 tracks, 8 sectors per track</td>
+</tr>
+<tr>
+<td>FBh</td>
+<td>5"1/4, double sided, 80 tracks, 8 sectors per track<br>
+3"1/2, double sided, 80 tracks, 8 sectors per track</td>
+</tr>
+<tr>
+<td>FCh</td>
+<td>5"1/4, single sided, 40 tracks, 9 sectors per track</td>
+</tr>
+<tr>
+<td>FDh</td>
+<td>5"1/4, double sided, 40 tracks, 9 sectors per track<br>
+8", double sided, 77 tracks, 26 sectors per track</td>
+</tr>
+<tr>
+<td>FEh</td>
+<td>5"1/4, single sided, 40 tracks, 8 sectors per track<br>
+8", single sided, 77 tracks, 2 sectors per track<br>
+8", single sided, 77 tracks, 6 sectors per track<br>
+8", single sided, 77 track, 8 sectors per track</td>
+</tr>
+<tr>
+<td>FFh</td>
+<td>5"1/4, double sided, 40 tracks, 8 sectors per track</td>
+</tr>
+</tbody></table>
+<br>
+<br>
+<center><a href="http://www.xaff.org/gi.html">[ Return to General Information Index ]</a>
+<a href="http://www.xaff.org/index.html">[ Return to main index ]</a></center>
+<hr>
+<address>
+© 1999 - Xavier Leclercq &lt;xavierleclercq@iname.com&gt;
+</address>
+</body></html>

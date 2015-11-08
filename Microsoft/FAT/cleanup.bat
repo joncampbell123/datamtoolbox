@@ -1,0 +1,16 @@
+@echo off
+del *.plg
+del *.opt
+del *.ncb
+del *.ilk
+del debug\*.obj
+del debug\*.pch
+del debug\*.pdb
+del debug\*.idb
+del release\*.obj
+del release\*.pch
+del release\*.pdb
+del release\*.idb
+rmdir debug
+rmdir release
+del cdosfat.dsw

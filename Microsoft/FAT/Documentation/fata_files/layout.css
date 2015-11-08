@@ -1,0 +1,134 @@
+BODY, P, H1, H2, H3, H4, H5, H6, ADDRESS, DIV, TR, TD, UL, OL, BLOCKQUOTE, SPAN, DT, DD, TH, TABLE, CAPTION {
+	color: black;
+	font-family: Verdana, Arial, Helvetica, sans-serif; 
+	font-size: 10pt;
+}
+PRE {
+	font-family: monospace;
+}
+	
+CAPTION {
+	text-decoration: italic;
+}
+
+BODY { 
+	background: url("background.jpg") #f0f0f0;
+	margin-left: 40pt;
+	margin-right: 10pt;
+}
+
+H1 {
+	font-size: 24pt;
+	font-weight: bold;
+	margin-left: -30pt;
+	margin-bottom: 0.2em;
+}
+
+
+H2 {
+	font-size: 18pt;
+	font-weight: bold;
+	margin-top: 0.1em;
+	margin-bottom: 0.05em;
+}
+
+H3 {
+	font-size: 16pt;
+	font-weight: bold;
+	margin-top: 0.1em;
+	margin-bottom: 0;
+}
+
+H3.subsub {
+	margin-left: 30pt;
+}
+
+
+H4 {
+	font-size: 12pt;
+	text-decoration: underline;
+	margin-bottom: 0.1em;
+}
+
+DIV.ulinebox {
+	margin-left: -30pt;
+	margin-bottom: 0.1em;
+	border: solid black;
+	border-bottom-width: 1px;
+	border-top-width: 0;
+	border-left-width: 0;
+	border-right-width: 0;
+}
+
+
+ADDRESS {
+	font-size: 10pt;
+	text-align: center;
+	text-decoration: italic;
+}
+
+
+
+A:link { 
+	color: blue; 
+	text-decoration: none;
+}
+
+A:hover { 
+	color: red; 
+	text-decoration: underline;
+}
+
+BODY > HR.startp {
+	align: left;
+	margin-left: -30pt;
+	margin-right: 30pt;
+	
+}
+
+BODY > HR.endp {
+	align: left;
+	margin-top: 30pt;
+	margin-left: -30pt;
+	margin-right: 30pt;
+	
+}
+
+TR, TD {
+	align: top;
+}
+
+TR.ev {
+	background: #f0f0f0;
+}
+TR.od {
+	background: #ffffff;
+}
+TR.total {
+	background: #e7e7e7;
+}
+TR.head {
+	background: #e0e0e0;
+}
+
+TABLE.boxed  {
+	border: solid black 1pt;
+}
+
+TD {
+	font-size: 10pt;
+}
+
+TH {
+	font-weight: bold;
+	text-align: left;
+}
+
+DT {
+	font-weight: bold;
+}
+
+DD {
+	margin-left: 30pt;
+	margin-bottom: 0.5em;
+}

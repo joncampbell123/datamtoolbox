@@ -1,0 +1,37 @@
+Content type:            Filesystem
+Filesystem Name:         Apple Macintosh Filesystem
+Filesystem abbreviation: MFS
+Filesystem status:       Old and obsolete
+
+MFS is an old obsolete filesystem that was once used exclusively
+by all versions of the Macintosh OS up until somewhere around
+3.11 when it was replaced by the now widely known HFS (Hierarchical
+File System). It was used so little in the commercial software world
+that it is unlikely you will find a floppy disk with an MFS filesystem
+on it (the best examples of MFS that I can find are the original
+Macintosh System floppies prior to 3.11).
+
+Despite different methods of organizing files, HFS and MFS have a lot
+in common. Both allow data and resource forks. The filesystem structures
+for MFS and HFS are very similar to each other, in fact many HFS
+structures are merely MFS structures with additional data fields.
+
+MFS however does not use B* trees as HFS does. MFS instead uses a
+singly linked list of allocation blocks, much like MS-DOS + FAT does
+with clusters. Each file is associated with an allocation block that it
+starts at (one for each fork), and the file continues until the end of
+the chain.
+
+Folders do not exist in MFS. No provisions are made for folders, they
+are "faked" by the Finder.
+
+
+programs provided in this directory are:
+
+./mfsdump.cpp
+
+    utility to read MFS filesystems and dump the files
+    contained within. both data and resource forks are
+    dumped. files are written to the current directory
+    using the filename given in the MFS filesystem
+    (with Macintosh extended characters filtered out).

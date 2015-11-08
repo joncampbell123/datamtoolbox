@@ -1,0 +1,3 @@
+This directory contains code that can examine the Macintosh boot block
+(first 1024 bytes or 2 sectors of a Macintosh floppy disk) and print
+out various information.

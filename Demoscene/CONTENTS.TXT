@@ -1,0 +1,8 @@
+
+[Internal application packing]
+./FutureCrew-EXEdir/                     Code to extract "files" packed in a common directory
+                                         format inside the main .EXE that is common to some
+                                         Future Crew demos: Unreal, Fishtro, TheParty, and Panic
+
+./RealTech94-Res/                        Code to extract resources from the DIM.RES file in RealTech's
+                                         1994 demo "dimension" and from MEGAMIX.RES from "megamix"

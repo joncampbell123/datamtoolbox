@@ -1,0 +1,42 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 3.2 Final//EN">
+<html><head>
+ <meta name="GENERATOR" content="SGML-Tools 1.0.9"><title>The FAT filesystem: FAT under Linux</title>
+ 
+ <link href="http://www.win.tue.nl/%7Eaeb/linux/fs/fat/fat-1.html" rel="previous">
+ <link href="http://www.win.tue.nl/%7Eaeb/linux/fs/fat/fat.html#toc2" rel="contents"></head>
+
+<body>
+Next
+<a href="http://www.win.tue.nl/%7Eaeb/linux/fs/fat/fat-1.html">Previous</a>
+<a href="http://www.win.tue.nl/%7Eaeb/linux/fs/fat/fat.html#toc2">Contents</a>
+<hr>
+<h2><a name="s2">2. FAT under Linux</a></h2>
+
+<p>Linux has support for FAT12 and FAT16 filesystems since 0.97.
+Linux has support for FAT32 since 2.0.34.
+</p><p>The maximum number of clusters in the data area for which FAT12 was
+assumed was 4086 in 0.97, 4078 in 0.99p8, and first much later,
+in 2.2.16/2.4.0-test2, the correct value 4084 was used.
+</p><p>Linux recognizes FAT32 by: bytes 22-23 are zero, bytes 36-39 nonzero
+in the bootsector.
+</p><p>As heuristics to see whether an unknown filesystem really is a
+FAT filesystem, the following criteria (on the bootsector) have been employed:
+</p><p>(i) The number of FATs (byte 16) is nonzero.
+</p><p>(ii) The cluster size (byte 13) is a power of two.
+</p><p>(iii) The logical sector size (bytes 11-12) is a power of two, at least 512.
+</p><p>(iv) The number of root directory entries (bytes 17-18) is a multiple
+of the number of directory entries per logical sector.
+</p><p>(v) The disk geometry has a nonzero number of heads (bytes 26-27)
+and sectors/track (bytes 24-25).
+</p><p>(vi) The number of reserved sectors (bytes 14-15) is nonzero.
+</p><p>(vii) The media descriptor type (byte 21) is f0 or one of f8-ff.
+</p><p>(viii) The FAT starts with the media descriptor byte.
+</p><p>(ix) The FAT does contain the bit for the last cluster, i.e., is not too short.
+</p><p>(x) For FAT32 also: get the fsinfo sector number (bytes 48-49); if this
+field is zero, take 1. Check both signatures.
+</p><p>
+</p><hr>
+Next
+<a href="http://www.win.tue.nl/%7Eaeb/linux/fs/fat/fat-1.html">Previous</a>
+<a href="http://www.win.tue.nl/%7Eaeb/linux/fs/fat/fat.html#toc2">Contents</a>
+</body></html>

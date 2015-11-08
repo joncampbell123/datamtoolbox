@@ -1,0 +1,50 @@
+Content type:            Filesystem
+Filesystem Name:         Windows NT filesystem
+Filesystem abbreviation: NTFS
+Filesystem status:       Seen only on hard drive partitions, never a floppy disk,
+                         though it is possible to use Windows 2000/XP machines
+                         to format USB pen drives as NTFS.
+Native to:               Windows NT/2000/XP/Vista
+
+NTFS is the native filesystem of the Windows NT operating system and
+all derivatives. Like Windows NT, NTFS is very feature rich and
+complex with support for filesystem-level access control, security,
+compression, encryption, and redundancy in structure to help detect
+errors. It uses a database-like approach to objects (files and
+directories) where all files & folders are listed in a catalog
+(somewhat like HFS) known as a "Master File Table". Like a database,
+directories exist as a "view" of the data in a relational sense
+referring to the entries in the MFT that exist within it, sorted by
+"keys". At the lowest level this design is flexible enough to
+create views matching any possible attribute, though I have yet to
+see Windows NT utilize this fully.
+
+The MFT itself is also very flexible (but messy!). Each entry of the
+MFT takes one cluster (simple enough), which then contains attributes
+describing what that entry is. In NTFS, almost everything is an attribute,
+even the file name, and even the data associated with the file! Of
+course all that data won't fit in one cluster, so the MFT refers to
+attributes in two forms: "resident" and "nonresident". Resident means
+that the attribute's data is right there in the MFT. Some attributes,
+such as file names are always resident. Nonresident means that the
+attribute's data is somewhere else on the disk, written according to a
+run-length encoded virtual cluster map which maps clusters within the
+file to actual clusters on disk (with provisions for sparse/unmapped
+blocks and to keep track of things when compression is involved). The
+data attribute is usually nonresident since most files are too big to
+fit in one cluster. However if the file is small enough the system will
+store the data attribute as resident.
+
+The only major downside to NTFS is that these references, attributes,
+maps, and error resilience add up to one very messy filesystem structure
+indeed!
+
+NOTE: I cannot take credit for figuring all this out. Most of the code
+      written here is the result of long hours studying the source code
+      of the Linux NTFS filesystem driver then filling in the details
+      using a USB pen drive, a Windows box, and guesswork. I cannot
+      be 100% sure that this code will correctly read an NTFS filesystem
+      structure---all I know is that it works with the formatted NTFS
+      structure my Windows XP box generates.
+
+THIS CODE DOES NOT YET SUPPORT SPARSE, ENCRYPTED, AND COMPRESSED FILES!

@@ -1,0 +1,14 @@
+This directory contains code to read from Apple computer related filesystems.
+
+[filesystems]
+./MFS/                            Apple Macintosh File System (MFS, predecessor to HFS)
+./HFS/                            Apple Hierarchical File System (HFS)
+
+[boot sector parsing code]
+./Macintosh-BootBlock/            Apple Macintosh boot block related code
+
+[disk image formats]
+./Image-DiskCopy/                 Apple DiskCopy (utility to copy/image floppy disks) related code
+
+[common items]
+./common/                         Common defines, enumerations, structures, and code

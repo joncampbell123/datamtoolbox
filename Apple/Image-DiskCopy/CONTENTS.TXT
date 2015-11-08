@@ -1,0 +1,2 @@
+Contains code to examine Apple DiskCopy images and use them
+in a BlockDevice class as if a block device.

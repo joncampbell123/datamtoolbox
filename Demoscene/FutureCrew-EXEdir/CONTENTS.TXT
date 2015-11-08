@@ -1,0 +1,17 @@
+A C++ class to read and expose items inside several demos by the Future Crew:
+
+(you can find these on www.hornet.org)
+
+Unreal (v1.0 and v1.1)
+Panic
+Theparty
+Fishtro
+
+
+
+
+Each program is distributed as a standalone .EXE with all of
+the data and program code packed inside itself. Along with
+all of the data, a simple directory structure is inserted as
+well (a pointer to it is stored as the last 4 bytes) which
+points to everything used in the demo (and then some).

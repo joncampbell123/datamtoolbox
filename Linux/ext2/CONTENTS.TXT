@@ -1,0 +1,10 @@
+Content type:            Filesystem
+Filesystem Name:         Linux Extended Filesystem 2/3 filesystem
+Filesystem abbreviation: EXT2, EXT3
+Filesystem status:       Widely used on all Linux installations and media
+
+Ext2 is considered the official filesystem of Linux. In almost every Linux
+distribution you can find the installer will always provide it as a default.
+
+Ext3 is the same as ext2, with the addition of a journalling inode.
+

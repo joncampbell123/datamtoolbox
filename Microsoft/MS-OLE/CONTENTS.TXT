@@ -1,0 +1,22 @@
+A C++ class to read and expose items inside Microsoft OLE/COM container
+files.
+
+A OLE container file can have any extension and is likely the format
+of choice if the program depends on the COM/OLE storage objects.
+
+A partial list of programs that rely on the OLE container format:
+
+  * Microsoft Office (Word/Excel/PowerPoint/etc...)
+  * Macromedia Flash (those .FLA files are in fact OLE container objects)
+
+
+./cmsolefs.cpp
+
+    A C++ class that can be used to examine the contents of an OLE container
+
+./Documentation/
+
+    A collection of miscellaneous documentation gathered from various
+    sources (including the LAOLA project) describing the OLE container
+    format
+

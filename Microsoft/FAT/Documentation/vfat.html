@@ -1,0 +1,121 @@
+<html><head>
+  <meta http-equiv="Content-Type" content="text/html; charset=windows-1252">
+  <meta name="Generator" content="Microsoft Word 97"><title>NOTES ON THE STRUCTURE OF THE VFAT FILESYTEM</title>
+  
+  <meta name="Template" content="C:\Program Files\Microsoft Office\Office\html.dot"></head>
+  <body link="#0000ff" vlink="#800080">
+  
+  <b><font face="Arial" size="4"><p>NOTES ON THE STRUCTURE OF THE VFAT FILESYTEM</p>
+  </font></b><font size="2"></font><p><font size="2">(This documentation was provided by Galen C. Hunt <font size="2"> and lightly annotated by Gordon Chaffee &lt;</font><a href="mailto:chaffee@bmrc.berkeley.edu"><font size="2">chaffee@bmrc.berkeley.edu</font></a><font size="2">&gt;, see Gordon’s </font><a href="http://bmrc.berkeley.edu/people/chaffee/vfat.html"><font size="2">VFAT</font></a><font size="2"> home page).</font></font></p>
+<font size="2"><font size="2">  </font></font><p><font size="2"><font size="2">This
+document presents a very rough, technical overview of my knowledge of
+the extended FAT file system used in Windows NT 3.5 and Windows 95. I
+don’t guarantee that any of the following is correct, but it appears to
+be so. Also note that all of the information in this document was
+derived from many hex dumps of directory structures of disks created
+using a Windows 95 beta.)</font></font></p>
+<font size="2"><font size="2">  </font></font><p><font size="2"><font size="2">The
+extended FAT file system is almost identical to the FAT file system
+used in DOS versions up to and including 6.223410239847 :-). The
+significant change has been the addition of long file names. Theses
+names support up to 255 characters including spaces and lower case
+characters as opposed to the traditional 8.3 short names.</font></font></p>
+<font size="2"><font size="2">  </font></font><p><font size="2"><font size="2">Here is the description of the traditional FAT entry in the current
+  Windows 95 filesystem:</font></font></p>
+<font size="2"><font size="2">  </font></font><pre><font size="2"><font size="2">  struct directory {                // Short 8.3 names
+      unsigned char name[8];        // file name
+      unsigned char ext[3];         // file extension
+      unsigned char attr;           // attribute byte
+      unsigned char lcase;          // Case for base and extension
+      unsigned char ctime_ms;       // Creation time, milliseconds
+      unsigned char ctime[2];       // Creation time
+      unsigned char cdate[2];       // Creation date
+      unsigned char adate[2];       // Last access date
+      unsigned char reserved[2];    // reserved values (ignored)
+      unsigned char time[2];        // time stamp
+      unsigned char date[2];        // date stamp
+      unsigned char start[2];       // starting cluster number
+      unsigned char size[4];        // size of the file
+  };
+  </font></font></pre>
+<font size="2"><font size="2">  </font></font><p><font size="2"><font size="2">The
+lcase field specifies if the base and/or the extension of an 8.3 name
+should be capitalized. This field does not seem to be used by Windows
+95 but it is used by Windows NT. The case of filenames is not
+completely compatible from Windows NT to Windows 95. It is not
+completely compatible in the reverse direction, however. Filenames that
+fit in the 8.3 namespace and are written on Windows NT to be lowercase
+will show up as uppercase on Windows 95.</font></font></p>
+<font size="2"><font size="2">  </font></font><p><font size="2"><font size="2">Note
+that the "start" and "size" values are actually little endian integer
+values. The descriptions of the fields in this structure are public
+knowledge and can be found elsewhere.</font></font></p>
+<font size="2"><font size="2">  </font></font><p><font size="2"><font size="2">With
+the extended FAT system, Microsoft has inserted extra directory entries
+for any files with extended names. (Any name which legally fits within
+the old 8.3 encoding scheme does not have extra entries.) I call these
+extra entries slots. Basically, a slot is a specially formatted
+directory entry which holds up to 13 characters of a files extended
+name. Think of slots as additional labeling for the directory entry of
+the file to which they correspond. Microsoft prefers to refer to the
+8.3 entry for a file as its alias and the extended slot directory
+entries as the file name. </font></font></p>
+<font size="2"><font size="2">  </font></font><p><font size="2"><font size="2">The C structure for a slot directory entry follows:</font></font></p>
+<font size="2"><font size="2">  </font></font><pre><font size="2"><font size="2">  struct slot {                     // Up to 13 characters of a long name
+      unsigned char id;             // sequence number for slot
+      unsigned char name0_4[10];    // first 5 characters in name
+      unsigned char attr;           // attribute byte
+      unsigned char reserved;       // always 0
+      unsigned char alias_checksum; // checksum for 8.3 alias
+      unsigned char name5_10[12];   // 6 more characters in name
+      unsigned char start[2];       // starting cluster number
+      unsigned char name11_12[4];   // last 2 characters in name
+  };
+  </font></font></pre>
+<font size="2"><font size="2">  </font></font><p><font size="2"><font size="2">If
+the layout of the slots looks a little odd, it’s only because of
+Microsoft’s efforts to maintain compatibility with old software. The
+slots must be disguised to prevent old software from panicing. To this
+end, a number of measures are taken:</font></font></p>
+<font size="2"><font size="2">  </font></font><ol>
+<font size="2"><font size="2">  
+  <li>The attribute byte for a slot
+directory entry is always set to 0x0f. This corresponds to an old
+directory entry with attributes of "hidden", "system", "read-only", and
+"volume label". Most old software will ignore any directory entries
+with the "volume label" bit set. Real volume label entries don’t have
+the other three bits set.</li>
+  <li>The starting cluster is always set to 0, an impossible value for a DOS file.</li></font></font></ol>
+<font size="2"><font size="2">  
+  </font></font><p><font size="2"><font size="2">Because
+the extended FAT system is backward compatible, it is possible for old
+software to modify directory entries. Measures must be taken to insure
+the validity of slots. An extended FAT system can verify that a slot
+does in fact belong to an 8.3 directory entry by the following:</font></font></p>
+<font size="2"><font size="2">  </font></font><ol>
+<font size="2"><font size="2">  
+  <li>Positioning. Slots for a file
+always immediately proceed their corresponding 8.3 directory entry. In
+addition, each slot has an id which marks its order in the extended
+file name. Here is a very abbreviated view of an 8.3 directory entry
+and its corresponding long name slots for the file "My Big
+File.Extension which is long":</li>
+  </font></font><pre><font size="2"><font size="2">  proceeding files...
+  slot #3, id = 0x43, characters = "h is long"
+  slot #2, id = 0x02, characters = "xtension whic"
+  slot #1, id = 0x01, characters = "My Big File.E"
+  directory entry, name = "MYBIGFIL.EXT"
+  </font></font></pre>
+<font size="2"><font size="2">  </font></font><p><font size="2"><font size="2">Note
+that the slots are stored from last to first. Slots are numbered from 1
+to N. The Nth slot is or’ed with 0x40 to mark it as the last one.</font></font></p>
+<font size="2"><font size="2">  <li>Checksum. Each slot has an "alias_checksum" value. The checksum is
+  calculated from the 8.3 name using the following algorithm:</li>
+  </font></font><pre><font size="2"><font size="2">  for (sum = i = 0; i &lt; 11; i++)
+      sum = ( ((sum &amp; 1) &lt;&lt; 7) | ((sum &amp; 0xfe) &gt;&gt; 1) ) + name[i];
+  </font></font></pre>
+<font size="2"><font size="2">  <li>If there is space in the final
+slot, a Unicode NULL (0x0000) is stored after the final character.
+After that, all unused characters in the final slot are set to Unicode
+0xFFFF.</li></font></font></ol>
+<font size="2"><font size="2">  </font></font></body></html>

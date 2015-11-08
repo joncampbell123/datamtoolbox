@@ -1,0 +1,20 @@
+This directory contains code to read from Microsoft related filesystems and structures.
+
+[filesystems]
+./FAT/                            MS-DOS FAT filesystem
+./NTFS/                           Windows NT/2000/XP NTFS filesystem
+
+[containers]
+./MS-OLE/                         Microsoft OLE container files (Word, Excel, etc..)
+
+[partitions]
+./MS-Partitions/                  MS-DOS hard disk partitions
+
+[executable formats]
+./MSDOS-EXE/                      MS-DOS EXE header code
+
+[binary identification & examination]
+./MSDOS-WinEXEstub/               Examines the MS-DOS stub code of Windows .EXE binaries
+
+[document formats]
+./MS-Word97/                      Microsoft Word 97/2000/XP/2003 documents

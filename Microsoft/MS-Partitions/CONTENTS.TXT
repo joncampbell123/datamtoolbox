@@ -1,0 +1,10 @@
+Code to parse Microsoft MS-DOS partitions.
+
+./cpcpartitions.cpp
+
+    A C++ class that can be used to read partition tables
+
+./Documentation/
+
+    A collection of miscellaneous documentation gathered from various
+    sources across the internet that describe the MS-DOS partition table.

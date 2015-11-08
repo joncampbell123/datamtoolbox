@@ -1,0 +1,48 @@
+Microsoft Visual Studio Solution File, Format Version 8.00
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "MS-Word97", "MS-Word97.vcproj", "{7A058755-E5F1-4166-B419-DCE6676B6CC1}"
+	ProjectSection(ProjectDependencies) = postProject
+		{21134F31-3632-400C-B0D4-4D3C7672D28D} = {21134F31-3632-400C-B0D4-4D3C7672D28D}
+		{7AA7109F-B1EC-4DA6-8C71-3135CDDE6073} = {7AA7109F-B1EC-4DA6-8C71-3135CDDE6073}
+		{B05FEAC6-3870-488E-9F34-305E6AE4FE98} = {B05FEAC6-3870-488E-9F34-305E6AE4FE98}
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "cmsolefs", "..\MS-OLE\cmsolefs.vcproj", "{7AA7109F-B1EC-4DA6-8C71-3135CDDE6073}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "SomeFileStdio", "..\..\common\SomeFileStdio.vcproj", "{21134F31-3632-400C-B0D4-4D3C7672D28D}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Project("{8BC9CEB8-8B4A-11D0-8D11-00A0C91BC942}") = "Types", "..\..\common\Types.vcproj", "{B05FEAC6-3870-488E-9F34-305E6AE4FE98}"
+	ProjectSection(ProjectDependencies) = postProject
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfiguration) = preSolution
+		Debug = Debug
+		Release = Release
+	EndGlobalSection
+	GlobalSection(ProjectConfiguration) = postSolution
+		{7A058755-E5F1-4166-B419-DCE6676B6CC1}.Debug.ActiveCfg = Debug|Win32
+		{7A058755-E5F1-4166-B419-DCE6676B6CC1}.Debug.Build.0 = Debug|Win32
+		{7A058755-E5F1-4166-B419-DCE6676B6CC1}.Release.ActiveCfg = Release|Win32
+		{7A058755-E5F1-4166-B419-DCE6676B6CC1}.Release.Build.0 = Release|Win32
+		{7AA7109F-B1EC-4DA6-8C71-3135CDDE6073}.Debug.ActiveCfg = Debug|Win32
+		{7AA7109F-B1EC-4DA6-8C71-3135CDDE6073}.Debug.Build.0 = Debug|Win32
+		{7AA7109F-B1EC-4DA6-8C71-3135CDDE6073}.Release.ActiveCfg = Release|Win32
+		{7AA7109F-B1EC-4DA6-8C71-3135CDDE6073}.Release.Build.0 = Release|Win32
+		{21134F31-3632-400C-B0D4-4D3C7672D28D}.Debug.ActiveCfg = Debug|Win32
+		{21134F31-3632-400C-B0D4-4D3C7672D28D}.Debug.Build.0 = Debug|Win32
+		{21134F31-3632-400C-B0D4-4D3C7672D28D}.Release.ActiveCfg = Release|Win32
+		{21134F31-3632-400C-B0D4-4D3C7672D28D}.Release.Build.0 = Release|Win32
+		{B05FEAC6-3870-488E-9F34-305E6AE4FE98}.Debug.ActiveCfg = Debug|Win32
+		{B05FEAC6-3870-488E-9F34-305E6AE4FE98}.Debug.Build.0 = Debug|Win32
+		{B05FEAC6-3870-488E-9F34-305E6AE4FE98}.Release.ActiveCfg = Release|Win32
+		{B05FEAC6-3870-488E-9F34-305E6AE4FE98}.Release.Build.0 = Release|Win32
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+	EndGlobalSection
+	GlobalSection(ExtensibilityAddIns) = postSolution
+	EndGlobalSection
+EndGlobal

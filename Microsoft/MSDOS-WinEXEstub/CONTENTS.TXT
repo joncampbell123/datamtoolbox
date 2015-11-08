@@ -1,0 +1,39 @@
+A simple program to examine the MS-DOS stub of a Windows executable and identify
+the "flavor" of stub used.
+
+Explanation:
+
+  For as long as Windows has existed there has been for it's programs an alternative
+  EXE header that exists separate from MS-DOS, by design. Unfortunately MS-DOS does
+  not know how to read this header, and the code contained within it is foreign to it.
+  Also, an unknowing user might attempt to run it from DOS not knowing that Windows
+  is required, and DOS would likely run it directly as if a raw binary image (.COM
+  executable). So to be user-friendly and at least provide a safe fallback, each
+  Windows executable has an MS-DOS "stub" program attached. In fact, by design of
+  the Windows EXE header, this stub (or some sort of MS-DOS facimile) is required.
+
+  You will have likely seen this stub in a hex editor as the code at the very
+  beginning of an EXE with the text "This program requires Microsoft Windows".
+  If you dropped into MS-DOS mode and ran the program, that is what would appear
+  on the screen, and you would be immediately dropped back to the DOS prompt.
+
+  The only exception to this rule are Windows programs that were explicitly compiled
+  with instructions given to the linker to use an "alternative stub". This
+  alternative stub was likely an alternate DOS version for use in DOS when Windows
+  was not available.
+
+
+There apparently exist several variations, in which the code or text changes
+slightly over time. This can be used to possibly identify the environment or
+compiler used to create the application.
+
+Many EXE files made on or prior to 1992-1993, or linked/compiled using MSVC++ 1.5
+will have "This program requires Microsoft Windows". EXEs made after this period
+will more likely have "This program cannot be run in DOS mode" as this is the
+more common stub code used by the 32-bit compilers since MSVC++ 2.0. These are
+the two most likely stubs you will find in Windows EXE files.
+
+There do exist other variations though. EXEs compiled on Far Eastern
+DOS/Windows 3.1 systems will have "This program requires Microsoft Windows"
+in Big5 or ShiftJIS (a virtual 3D golf game in the Microsoft Entertainment Pack
+has this stub code if I recall correctly).

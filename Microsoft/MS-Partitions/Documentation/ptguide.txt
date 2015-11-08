@@ -1,0 +1,255 @@
+
+
+
+		A  Guide  To  Interpreting  Partition  Tables
+               ===============================================
+
+
+     There is room for only four (4) entries in each Partition Table.
+  They begin at 01BE, 01CE, 01DE and 01EE and are each 16 bytes long.
+  The fields have the following meanings [I've added an example here
+  in the explanation section from a more recent Large HDD to help in
+  understanding this; don't worry about having to remember all this
+  though, many programs exist which will interpret these bytes for
+  you and display the data as total sector numbers in decimal]:
+
+
+  For the following explanations, we'll use this data directly from a
+  more recent drive (this partition is 268,430,022 sectors in length;
+  137,436,171,264 bytes, or roughly: 137 GB).  The offsets shown here
+  are only a convenient way to refer to the data bytes; to see where
+  they are actually located in the MBR, you would have to add them to
+  01BE, for example, if this were the Partition Table's first entry.
+
+  Offsets:     0  1  2  3  4  5  6  7  8  9  A  B  C  D  E  F
+
+     Data:    80 01 01 00 07 FE FF FF 3F 00 00 00 C6 EA FF 0F
+
+
+   Offset (from
+   start of each
+   entry; 0 - F)                     Meaning
+   ------------      --------------------------------------------
+
+         0 h          80h = Bootable (Active Partition)
+                      00h = Non-bootable
+
+                      [So, this is _the_ bootable partition.]
+         --------------------------------------------------------
+
+         1 h          Starting Head (1 byte; 0h to FEh, for 255)
+                      -------- ====
+
+                      [So, this partition's Starting Head is: 1 ]                       
+         --------------------------------------------------------
+
+         2 h          Starting Sector; only bits 0 thru 5; sector
+                      numbers always start with 1, so this gives
+                      us a max total of 63 sectors (01h to 3Fh).
+                           ------------ ==========
+
+                      Example: FA = 1111 1010, but only the first
+                      5 bits are used... xx11 1010 = 3Ah or 58.
+
+                     (Bits 6 and 7 are used as Bits 8 and 9 of
+                      the 10-bit Starting Cylinder; see next.)
+
+                      [So, our Starting Sector is also a: 1 ]
+         --------------------------------------------------------
+
+         3 h          Starting Cylinder; lower 8 bits (0 to 7)
+                      of this byte, plus bits 6 and 7 from the
+                      byte above to form a 10-bit number.
+                      (Example: Use FAh from above and a 32h as
+                       this byte.)
+
+                      The number is formed from bits 6 and 7 of
+                      the Starting Sector being placed in front
+                      of these eight bits:
+
+                        1   1       0  0  1  1  0  0  1  0
+                      Bit9 Bit8   Bit7     through      Bit0
+
+                      10 bit Hex number = 332h or Cylinder# 818.
+
+                      [So, our Starting Cylinder is just: 0 ]
+         --------------------------------------------------------
+
+         4 h          System ID byte:
+
+                        00 = Unused, Unknown.
+			01 = DOS, 12-bit FAT.
+			02,03 = XENIX.
+			04 = DOS, 16-bit FAT.
+			05 = DOS, Extended (16-bit FAT).
+			06 = "BIGDOS" 
+			07 = NTFS (Win nt/2k/xp), or HPFS (OS/2).
+			0B = DOS, 32-bit FAT.
+                        0C = 32-bit FAT using LBA (often means
+                             that some or all of the partition
+                             is beyond 8.4 GB into the drive).
+                        0F = An LBA Extended Partition!
+			63 = UNIX.
+                        83 = Linux.
+
+		       (There are MANY others; See the file:
+                          MBR_TABL.TXT in this distribution.)
+         --------------------------------------------------------
+
+         5 h          ENDING Head (1 byte; 0h to FEh, for 255)
+                             ====
+                      [NOTE: Although it's possible to count up
+                       to 256 heads in one Hex byte, due to an
+                       error made by Microsoft, the industry has
+                       never used more than 255 heads!
+        "All versions of MS-DOS (including MS-DOS 7 [Windows 95])
+         have a bug which prevents booting on hard disks with 256
+         heads (FFh), so many modern BIOSes provide mappings with
+         at most 255 (FEh) heads."
+         [INTER61 Copyright©1989-2000 by Ralf Brown]. See:
+ http://www.geocities.com/thestarman3/asm/mbr/DiskTerms.htm#HDcnt
+
+                      [So, our partition Ending Head is:  255
+                       It's almost ALWAYS this value for
+                       all modern large hard drives! ]
+         --------------------------------------------------------
+
+         6 h          ENDing Sector; only bits 0 thru 5 are used
+                      for a max total of 63 sectors (01h to 3Fh)
+                            ------------ ==========
+
+                    In our example: FF = 1111 1111, but only the
+                    first 5 bits are used... xx11 1111 = 3Fh or
+                    63.  (Bits 6 and 7 are used as Bits 8 and 9
+                    of the 10-bit  ENDing  Cylinder; see next.)
+
+                     [So, this partition's Ending Sector is:  63
+                      It's almost ALWAYS this value. ]
+         --------------------------------------------------------
+
+	 7 h          Ending Cylinder; lower 8 bits (0 to 7) of
+                      this byte, plus bits 6 and 7 from the byte
+                      above to form a 10-bit number. (Example:
+                      Use FFh from above and a 93h as this byte.)
+
+                      The number is formed from bits 6 and 7 of
+                      the Starting Sector being placed in front
+                      of these eight bits:
+
+                        1   1       1  0  0  1  0  0  1  1
+                      Bit9 Bit8   Bit7     through      Bit0
+
+                      10 bit Hex number = 393h or Cylinder# 915.
+ 
+                    [ For our Example Partition, the 10-bit Hex
+                      value is: 3FFh or 1023 in decimal. For ANY
+                      partition that ends up somewhere beyond ~
+                      8.4 GB into a modern large hard drive, the
+                      "Ending Cylinder" can never be any greater
+                      than 3FFh for a total of 1024 cylinders.
+
+                      This shows you why CHS values are pointless
+                      for all modern large hard drives! And their
+                      translations (by the BIOS and the OS, etc.)
+                      are performed using only the LBA values. ]
+         --------------------------------------------------------
+
+         8-B h      First Partition Sector (DoubleWORD: 4 bytes)
+
+                      You must remember in the case of a DOUBLE
+                    WORD to begin at the Fourth BYTE from where
+                    the number is stored in memory and then work
+                    backwards! In other words, REVERSE the order
+                    in which all 4 bytes are stored if you want
+                    to actually figure out the decimal equivalent
+                    of the HEX DOUBLE WORD number.
+
+                      For our Example Partition, this gives us a
+                    Hex number of: 0000003Fh for 63 sectors.
+
+         --------------------------------------------------------
+
+         C-F h      Number of Sectors in Partiton (Double WORD)
+                    "C6 EA FF 0F" must be reversed as:
+
+                    0FFFEAC6h = 268,430,022 sectors or multiply
+                    512 bytes per sector to give us a single
+                    partition size of: 137,436,171,264 bytes, or
+                    roughly about 137 GB.
+         --------------------------------------------------------
+
+
+                             C O N C L U S I O N
+                           =======================
+
+       From our study above, you can now see why some disk editors
+    display the CHS values as Head, Sector, Cylinder (HSC) instead:
+    It's because that's roughly the order they appear in the Table.
+
+    80  => The bootable partition (there can only be one; or none!).
+
+    01 01 00  =>  Starting CHS of:  0, 1, 1  (The first cylinder).
+
+    07  =>  The Partition Type is NTFS, (or possibly HPFS).
+
+    FE FF FF  =>  Ending CHS of:  1023, 255, 63  (very standard now
+                                  for almost all large hard drives!)
+
+    3F 00 00 00  =>  Where the Partition begins, Absolute Sector 63.
+
+    C6 EA FF 0F  =>  Total Number of Sectors in the Partition is:
+                     268,430,022 sectors or 137,436,171,264 bytes.
+
+
+--------------------------------------------------------------------------
+
+                             Another Example
+                           ===================
+
+            Here's the 16-bit record from the Partition Table
+             that was included in our MBR_DEMO.BIN file:
+
+
+             80 01 01 00 0B 7F BF FD 3F 00 00 00 C1 40 5E 00 
+             -- -------- == -------- ----------- -----------
+
+       80 => Bootable partition.
+
+       01 01 00 => Starting at Head 1,
+                   (Head 0 being the first head on the drive.)
+
+                   Sector 1  ( 01h = 0000 0001 binary )
+           [ (Use only lower 6 bits):  00 0001 = Sector 1 ]
+
+                   Cylinder 0  (Use bits 6 and 7 (00) from 01h
+           above to form the highest two bits of a 10-bit number)
+           [ 00 0000 0000 = 000h = Cylinder 0  ]
+
+
+       0B => 32-bit FAT (System ID; see table above for meanings)
+       ==
+
+       7F BF FD => Ending at Head 127 (7Fh),
+
+                  Sector 63 ( BFh = 1011 1111 binary )
+           [ (Use only lower 6 bits): 11 1111 = 3Fh = 63 ]
+
+                  Cylinder 765 (Use bits 6 and 7 (10) from BFh
+           above to form the highest two bits of a 10-bit number)
+           [ 10 1111 1101 = 2FDh = Cylinder 765 ]
+
+
+       3F 00 00 00 => First Sector of this Partition is 63.
+                      Double-WORD converts to: 0000003Fh or 63.
+
+       C1 40 5E 00 => And there are 6,176,961 sectors within this
+                      Partition.
+                     [ DoubleWORD equals: 005E40C1h = 6,176,961 ]
+
+
+   ---------------------------------------------------------------------
+
+   [ The Starman.  2 JUN 2004. ]
+
+ Revised: 06 NOV 2003  (should have done this a long time ago!)
+Origianl: 23 AUG 2000.

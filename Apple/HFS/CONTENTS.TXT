@@ -1,0 +1,20 @@
+Content type:            Filesystem
+Filesystem Name:         Apple Macintosh Hierarchical Filesystem
+Filesystem abbreviation: HFS
+Filesystem status:       Widely used on all Macintosh media
+
+HFS is considered THE filesystem of the Macintosh OS. It is used
+on virtually all Macintosh floppies and hard drives in existience,
+with it's only replacement being HFS+ for large hard drives.
+
+HFS allows filenames up to 31 characters long, with data and resource
+forks. The directory structure and many basic filesystem structures
+are organized in a B* tree, managed by a catalog file. Files are
+by default stored non-fragmented on the disk, though provisions
+are made using "extents" to allow fragmentation.
+
+
+
+./hfsdump.cpp
+
+    A utility to take a Macintosh HFS disk image and dump all files.

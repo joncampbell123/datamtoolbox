@@ -1,0 +1,14 @@
+This directory contains code to read from various file formats and filesystems.
+
+./common/                         Common code, classes, enumartions, etc. for this entire tree
+./Apple/                          All Apple Computer related code
+./Microsoft/                      Microsoft related code
+./Macromedia/                     Macromedia related code
+./Linux/                          All Linux-related code
+./ECMA/                           All ECMA-related code (e.g. ISO 9660)
+./Demoscene/                      Anything specifically related to the Demoscene
+./Other/                          Code related to companies or products that were not very well known
+./lib/                            A directory where all compiled LIB files will be placed
+
+THIS CODE IS PROVIDED AS-IS FOR REFERENCE, DATA BACKUP/RECOVERY, AND
+DIGITAL ARCHEOLOGICAL PURPOSES.
